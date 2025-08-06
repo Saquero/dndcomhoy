@@ -12,13 +12,15 @@ Esta API permite:
 
 - 📍 Buscar restaurantes según filtros familiares (zona amplia, parque cercano, tronas, cambiador, sin pantallas, menú infantil, etc.).
 - 📝 Recibir sugerencias públicas de nuevos restaurantes.
-- 🛡️ Gestionar sugerencias desde un panel de administración (en desarrollo).
+- 🛡️ Gestionar sug3erencias desde un panel de administración (en desarrollo).
 - 🔐 Proteger rutas con autenticación JWT.
 - 📚 Documentar automáticamente la API con Swagger.
 
 Además, su arquitectura es **reutilizable** como base para otros proyectos similares:
 
-> plataformas de catálogos geolocalizados, sistemas de sugerencias, dashboards administrativos, etc.
+- Plataformas de catálogos geolocalizados
+- Sistemas de sugerencias
+- Dashboards administrativos, etc.
 
 ---
 
@@ -27,7 +29,7 @@ Además, su arquitectura es **reutilizable** como base para otros proyectos simi
 - **Node.js** + **Express**
 - **Prisma ORM** + **PostgreSQL**
 - **JWT** para autenticación
-- **Swagger / OpenAPI** para documentación
+- **Swagger ** para documentación
 - **Helmet** y **CORS** para seguridad
 - **bcrypt** para cifrado de contraseñas
 - **Winston** para logging profesional
@@ -38,33 +40,28 @@ Además, su arquitectura es **reutilizable** como base para otros proyectos simi
 
 ### 1. Clonar el repositorio
 
-bash
 git clone <URL-del-repo>
 cd backend
 
 ### 2. Instalar dependencias
 
-bash
 npm install
 
 ### 3. Configurar variables de entorno
 
 Copia el archivo .env.example a .env y rellena con tus datos:
 
-ini
 DATABASE_URL=postgresql://usuario:password@localhost:5432/tu_base_de_datos
 JWT_SECRET=tu_clave_secreta_para_jwt
 PORT=3000
 
 ### 4. Aplicar migraciones de Prisma
 
-bash
 npx prisma migrate dev --name init
 Esto generará las tablas necesarias en la base de datos.
 
 ### 5. Levantar el servidor en modo desarrollo
 
-bash
 npm run dev
 Accede a la API en:
 http://localhost:3000
@@ -94,12 +91,10 @@ Ya puedes acceder a rutas protegidas (POST, PUT, DELETE, etc.).
 ### 📬 Ejemplos de endpoints
 
 Obtener todos los restaurantes (público)
-
-bash
 GET /api/restaurantes
+
 Crear un restaurante (admin)
 
-bash
 POST /api/restaurantes
 Headers:
 Authorization: Bearer <tu-token>
@@ -117,11 +112,10 @@ Body ejemplo:
 "verificado": false
 }
 Actualizar restaurante (admin)
-bash
 
 PUT /api/restaurantes/{id}
+
 Eliminar restaurante (admin)
-bash
 
 DELETE /api/restaurantes/{id}
 
@@ -147,22 +141,25 @@ Dashboards administrativos.
 
 Cualquier sistema con Node.js + JWT + Prisma.
 
-⭐ ¿Te ha sido útil?
+                 ⭐ ¿Te ha sido útil?
+
 Si te ha parecido útil este proyecto, dale una estrella ⭐ al repo.
 También puedes clonarlo, adaptarlo a tus ideas y mencionarme si te sirvió de ayuda.
 ¡Gracias por visitar Dónde Comemos Hoy! 🙌
 
 ---
 
-📘 Licencia
-MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+                       📘 Licencia
+
+              MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
 
 ---
 
-📬 Contacto
-💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+                             📬 Contacto
 
-🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
+                💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+
+            🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
 
 📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!
 

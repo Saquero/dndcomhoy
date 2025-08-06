@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurante {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @db.VarChar(255)
+  direccion   String   @db.VarChar(500)
+  localidad   String   @db.VarChar(100)
+  ciudad      String   @db.VarChar(100)
+  provincia   String   @db.VarChar(100)
+  telefonoRestaurante String?  @db.VarChar(20)
+  emailRestaurante    String?  @db.VarChar(255)
+  sitioWeb    String?  @db.VarChar(500)
+  imagenes    String[]
+  horario     String?  @db.VarChar(300)
+  slug        String   @unique @db.VarChar(255)
+  descripcion String   @db.Text
+
+  // Coordenadas para Google Maps
+  latitud     Float?
+  longitud    Float?
+
+  // Filtros booleanos para familias
+  zonaAmplia           Boolean  @default(false)
+  parqueCercano        Boolean  @default(false)
+  zonaInfantil         Boolean  @default(false)
+  tronaDisponible      Boolean  @default(false)
+  cambiadorDisponible  Boolean  @default(false)
+  sitioParaCarrito     Boolean  @default(false)
+  terrazaSegura        Boolean  @default(false)
+  actividadesParaNinos Boolean  @default(false)
+  menuInfantil         Boolean  @default(false)
+  aptoVegetariano      Boolean  @default(false)
+  aptoVegano           Boolean  @default(false)
+  sinPantallas         Boolean  @default(false)
+  ambienteFamiliar     Boolean  @default(false)
+  accesibleConCarrito  Boolean  @default(false)
+
+  // Estado interno
+  activo       Boolean  @default(true)
+  verificado   Boolean  @default(false)
+  vistas       Int      @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sugerencias  Sugerencia[]
+
+  // Índices para optimizar búsquedas
+  @@index([localidad])
+  @@index([ciudad])
+  @@index([activo])
+  @@index([localidad, activo])
+  @@index([ciudad, activo])
+  @@index([vistas])
+}
+
+model Sugerencia {
+  id          Int      @id @default(autoincrement())
+
+  // Info del restaurante sugerido
+  nombre                String   @db.VarChar(255)
+  direccion             String   @db.VarChar(500)
+  localidad             String   @db.VarChar(100)
+  ciudad                String   @db.VarChar(100)
+  provincia             String   @db.VarChar(100)
+  telefonoRestaurante   String?  @db.VarChar(20)
+  emailRestaurante      String?  @db.VarChar(255)
+  descripcion           String   @db.Text
+
+  // Info del usuario que sugiere
+  nombreContacto  String   @db.VarChar(100)
+  emailContacto   String?  @db.VarChar(255)
+  comentarios     String?  @db.Text
+
+  // Filtros booleanos para familias
+  zonaAmplia           Boolean  @default(false)
+  parqueCercano        Boolean  @default(false)
+  zonaInfantil         Boolean  @default(false)
+  tronaDisponible      Boolean  @default(false)
+  cambiadorDisponible  Boolean  @default(false)
+  sitioParaCarrito     Boolean  @default(false)
+  terrazaSegura        Boolean  @default(false)
+  actividadesParaNinos Boolean  @default(false)
+  menuInfantil         Boolean  @default(false)
+  aptoVegetariano      Boolean  @default(false)
+  aptoVegano           Boolean  @default(false)
+  sinPantallas         Boolean  @default(false)
+  ambienteFamiliar     Boolean  @default(false)
+  accesibleConCarrito  Boolean  @default(false)
+
+  // Estado y control
+  estado      EstadoSugerencia @default(PENDIENTE)
+  creadaEn    DateTime         @default(now())
+  procesadaEn DateTime?
+
+  restaurante   Restaurante? @relation(fields: [restauranteId], references: [id])
+  restauranteId Int?
+
+  @@index([estado])
+  @@index([creadaEn])
+}
+
+enum EstadoSugerencia {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  DUPLICADA
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  nombre    String?  @db.VarChar(100)
+  activo    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

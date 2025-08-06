@@ -38,29 +38,26 @@ Además, su arquitectura es **reutilizable** como base para otros proyectos simi
 
 ### 1. Clonar el repositorio
 
-```bash
+bash
 git clone <URL-del-repo>
-cd backend
-2. Instalar dependencias
+cd backend 2. Instalar dependencias
+bash
+npm install 3. Configurar variables de entorno
+Copia el archivo .env.example a .env y rellena con tus datos:
 
-npm install
-3. Configurar variables de entorno
-Crea un archivo .env en la raíz del proyecto copiando el archivo .env.example y rellenando con tus datos:
-
-
-DATABASE_URL="postgresql://usuario:password@localhost:5432/tu_base_de_datos"
-JWT_SECRET="tu_clave_secreta_para_jwt"
-PORT=3000
-4. Aplicar migraciones de Prisma
-
+ini
+DATABASE_URL=postgresql://usuario:password@localhost:5432/tu_base_de_datos
+JWT_SECRET=tu_clave_secreta_para_jwt
+PORT=3000 4. Aplicar migraciones de Prisma
+bash
 npx prisma migrate dev --name init
 Esto generará las tablas necesarias en la base de datos.
 
 5. Levantar el servidor en modo desarrollo
-
-npm run dev
-Accede a la API en:
-http://localhost:3000
+   bash
+   npm run dev
+   Accede a la API en:
+   http://localhost:3000
 
 📄 Documentación Swagger
 Puedes explorar y probar todos los endpoints desde:
@@ -69,14 +66,13 @@ Puedes explorar y probar todos los endpoints desde:
 🔐 Autenticación para rutas protegidas
 Realiza un login con:
 
-http
-
+pgsql
 POST /api/admin/login
 Content-Type: application/json
 
 {
-  "email": "admin@example.com",
-  "password": "tu_contraseña"
+"email": "admin@example.com",
+"password": "tu_contraseña"
 }
 Copia el token JWT recibido.
 
@@ -86,33 +82,36 @@ Ya puedes acceder a rutas protegidas (POST, PUT, DELETE, etc.).
 
 📬 Ejemplos de endpoints
 Obtener todos los restaurantes (público)
-GET /api/restaurantes
 
+bash
+GET /api/restaurantes
 Crear un restaurante (admin)
+
+bash
 POST /api/restaurantes
 Headers:
 Authorization: Bearer <tu-token>
 Content-Type: application/json
 Body ejemplo:
 
-Copiar
-Editar
 {
-  "nombre": "Restaurante Ejemplo",
-  "direccion": "Calle Falsa 123",
-  "descripcion": "Un lugar genial",
-  "zonaAmplia": true,
-  "parqueCercano": false,
-  "tronaDisponible": true,
-  "activo": true,
-  "verificado": false
+"nombre": "Restaurante Ejemplo",
+"direccion": "Calle Falsa 123",
+"descripcion": "Un lugar genial",
+"zonaAmplia": true,
+"parqueCercano": false,
+"tronaDisponible": true,
+"activo": true,
+"verificado": false
 }
 Actualizar restaurante (admin)
+bash
+
 PUT /api/restaurantes/{id}
-
 Eliminar restaurante (admin)
-DELETE /api/restaurantes/{id}
+bash
 
+DELETE /api/restaurantes/{id}
 💡 ¿Por qué usar este backend?
 Este backend no es solo funcional, también demuestra buenas prácticas de desarrollo profesional:
 
@@ -138,18 +137,16 @@ Si te ha parecido útil este proyecto, dale una estrella ⭐ al repo.
 También puedes clonarlo, adaptarlo a tus ideas y mencionarme si te sirvió de ayuda.
 ¡Gracias por visitar Dónde Comemos Hoy! 🙌
 
-## 📘 Licencia
-## 📘 Licencia
+---
 
-MIT © 2025 [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+📘 Licencia
+MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
 
 ---
 
-## 📬 Contacto
-
+📬 Contacto
 💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
+📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!
 
-🧠 *DevOps + Backend Developer | Apasionado por crear productos útiles*
-
-📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!*
-```
+---

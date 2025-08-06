@@ -40,32 +40,43 @@ Además, su arquitectura es **reutilizable** como base para otros proyectos simi
 
 bash
 git clone <URL-del-repo>
-cd backend 2. Instalar dependencias
+cd backend
+
+### 2. Instalar dependencias
+
 bash
-npm install 3. Configurar variables de entorno
+npm install
+
+### 3. Configurar variables de entorno
+
 Copia el archivo .env.example a .env y rellena con tus datos:
 
 ini
 DATABASE_URL=postgresql://usuario:password@localhost:5432/tu_base_de_datos
 JWT_SECRET=tu_clave_secreta_para_jwt
-PORT=3000 4. Aplicar migraciones de Prisma
+PORT=3000
+
+### 4. Aplicar migraciones de Prisma
+
 bash
 npx prisma migrate dev --name init
 Esto generará las tablas necesarias en la base de datos.
 
-5. Levantar el servidor en modo desarrollo
-   bash
-   npm run dev
-   Accede a la API en:
-   http://localhost:3000
+### 5. Levantar el servidor en modo desarrollo
 
-📄 Documentación Swagger
+bash
+npm run dev
+Accede a la API en:
+http://localhost:3000
+
+### 📄Documentación Swagger
+
 Puedes explorar y probar todos los endpoints desde:
 🔗 http://localhost:3000/api/docs
 
-🔐 Autenticación para rutas protegidas
-Realiza un login con:
+### 🔐 Autenticación para rutas protegidas
 
+Realiza un login con:
 pgsql
 POST /api/admin/login
 Content-Type: application/json
@@ -80,7 +91,8 @@ En Postman (o similar), ve a la pestaña “Authorization”, elige “Bearer To
 
 Ya puedes acceder a rutas protegidas (POST, PUT, DELETE, etc.).
 
-📬 Ejemplos de endpoints
+### 📬 Ejemplos de endpoints
+
 Obtener todos los restaurantes (público)
 
 bash
@@ -112,7 +124,9 @@ Eliminar restaurante (admin)
 bash
 
 DELETE /api/restaurantes/{id}
-💡 ¿Por qué usar este backend?
+
+### 💡 ¿Por qué usar este backend?
+
 Este backend no es solo funcional, también demuestra buenas prácticas de desarrollo profesional:
 
 Arquitectura limpia y modular.
@@ -123,7 +137,8 @@ Preparado para escalar y adaptarse a nuevas apps.
 
 Documentado y fácil de mantener.
 
-🔁 Puedes reutilizarlo como base para:
+### 🔁 Puedes reutilizarlo como base para:
+
 Apps para gestión de locales/sugerencias.
 
 Plataformas de recomendaciones moderadas.
@@ -146,7 +161,9 @@ MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-
 
 📬 Contacto
 💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+
 🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
+
 📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!
 
 ---

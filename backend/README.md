@@ -141,7 +141,7 @@ Dashboards administrativos.
 
 Cualquier sistema con Node.js + JWT + Prisma.
 
-                 ⭐ ¿Te ha sido útil?
+⭐ ¿Te ha sido útil?
 
 Si te ha parecido útil este proyecto, dale una estrella ⭐ al repo.
 También puedes clonarlo, adaptarlo a tus ideas y mencionarme si te sirvió de ayuda.
@@ -149,17 +149,17 @@ También puedes clonarlo, adaptarlo a tus ideas y mencionarme si te sirvió de a
 
 ---
 
-                       📘 Licencia
+📘 Licencia
 
-              MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
 
 ---
 
-                             📬 Contacto
+📬 Contacto
 
-                💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
 
-            🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
+🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
 
 📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!
 

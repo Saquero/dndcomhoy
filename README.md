@@ -1,4 +1,9 @@
-# 🧺 Dónde Comemos Hoy – Backend API para recomendaciones familiares 🍽️👶🌳
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c89eacd5-1e18-46f0-9055-301d140383dc" alt="Banner Dónde Comemos Hoy" width="100%" />
+</p>
+
+<h1 align="center">🧺Dónde Comemos Hoy – Backend API para recomendaciones familiares 🍽️👶🌳</h1>
 
 ¡Hola! Bienvenido al backend de **Dónde Comemos Hoy**, una API pensada para ayudar a familias con hijos a encontrar restaurantes tranquilos, accesibles y adaptados para niños pequeños.
 

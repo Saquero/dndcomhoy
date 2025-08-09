@@ -63,7 +63,7 @@ module.exports = (req, res, next) => {
       .json({ error: "El campo 'imagenes' debe ser un arreglo de strings" });
   }
 
-  // Validar booleanos si vienen, que sean booleanos o strings "true"/"false"
+  // Validar que los campos booleanos, si están presentes, sean valores booleanos o cadenas "true"/"false" (se aceptan ambos formatos)
   const booleanFields = [
     "zonaAmplia",
     "parqueCercano",

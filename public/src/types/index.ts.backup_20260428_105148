@@ -1,0 +1,97 @@
+export interface Restaurante {
+  id: number;
+  nombre: string;
+  slug: string;
+  direccion: string;
+  localidad: string;
+  ciudad: string;
+  provincia: string;
+  codigoPostal?: string | null;
+  pais?: string | null;
+  telefonoRestaurante?: string | null;
+  emailRestaurante?: string | null;
+  sitioWeb?: string | null;
+  imagenes: string[];
+  horario?: string | null;
+  descripcion: string;
+  latitud?: number | null;
+  longitud?: number | null;
+  zonaAmplia: boolean;
+  parqueCercano: boolean;
+  zonaInfantil: boolean;
+  tronaDisponible: boolean;
+  cambiadorDisponible: boolean;
+  sitioParaCarrito: boolean;
+  terrazaSegura: boolean;
+  actividadesParaNinos: boolean;
+  menuInfantil: boolean;
+  aptoVegetariano: boolean;
+  aptoVegano: boolean;
+  sinPantallas: boolean;
+  ambienteFamiliar: boolean;
+  accesibleConCarrito: boolean;
+  activo: boolean;
+  verificado: boolean;
+  vistas: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RestaurantesResponse {
+  data: Restaurante[];
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+}
+
+export interface FiltrosRestaurante {
+  q?: string;
+  ciudad?: string;
+  localidad?: string;
+  page?: number;
+  pageSize?: number;
+  zonaAmplia?: boolean;
+  parqueCercano?: boolean;
+  zonaInfantil?: boolean;
+  tronaDisponible?: boolean;
+  cambiadorDisponible?: boolean;
+  sitioParaCarrito?: boolean;
+  terrazaSegura?: boolean;
+  actividadesParaNinos?: boolean;
+  menuInfantil?: boolean;
+  aptoVegetariano?: boolean;
+  aptoVegano?: boolean;
+  sinPantallas?: boolean;
+  ambienteFamiliar?: boolean;
+  accesibleConCarrito?: boolean;
+}
+
+export interface SugerenciaPayload {
+  nombre: string;
+  direccion: string;
+  localidad: string;
+  ciudad: string;
+  provincia: string;
+  codigoPostal?: string;
+  descripcion: string;
+  nombreContacto: string;
+  emailContacto?: string;
+  comentarios?: string;
+  zonaAmplia?: boolean;
+  parqueCercano?: boolean;
+  zonaInfantil?: boolean;
+  tronaDisponible?: boolean;
+  cambiadorDisponible?: boolean;
+  sitioParaCarrito?: boolean;
+  terrazaSegura?: boolean;
+  actividadesParaNinos?: boolean;
+  menuInfantil?: boolean;
+  aptoVegetariano?: boolean;
+  aptoVegano?: boolean;
+  sinPantallas?: boolean;
+  ambienteFamiliar?: boolean;
+  accesibleConCarrito?: boolean;
+}

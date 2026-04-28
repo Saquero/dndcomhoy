@@ -1,0 +1,6313 @@
+
+
+===== FILE: backend\prisma\schema.prisma =====
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurante {
+  id                   Int      @id @default(autoincrement())
+  nombre               String   @db.VarChar(255)
+  direccion            String   @db.VarChar(500)
+  localidad            String   @db.VarChar(100)
+  ciudad               String   @db.VarChar(100)
+  provincia            String   @db.VarChar(100)
+  codigoPostal         String?  @db.VarChar(20)
+  pais                 String?  @db.VarChar(100)
+
+  telefonoRestaurante  String?  @db.VarChar(20)
+  emailRestaurante     String?  @db.VarChar(255)
+  sitioWeb             String?  @db.VarChar(500)
+  imagenes             String[]
+  horario              String?  @db.VarChar(300)
+  slug                 String   @unique @db.VarChar(255)
+  descripcion          String   @db.Text
+
+  latitud              Float?
+  longitud             Float?
+
+  zonaAmplia           Boolean  @default(false)
+  parqueCercano        Boolean  @default(false)
+  zonaInfantil         Boolean  @default(false)
+  tronaDisponible      Boolean  @default(false)
+  cambiadorDisponible  Boolean  @default(false)
+  sitioParaCarrito     Boolean  @default(false)
+  terrazaSegura        Boolean  @default(false)
+  actividadesParaNinos Boolean  @default(false)
+  menuInfantil         Boolean  @default(false)
+  aptoVegetariano      Boolean  @default(false)
+  aptoVegano           Boolean  @default(false)
+  sinPantallas         Boolean  @default(false)
+  ambienteFamiliar     Boolean  @default(false)
+  accesibleConCarrito  Boolean  @default(false)
+
+  activo               Boolean  @default(true)
+  verificado           Boolean  @default(false)
+  vistas               Int      @default(0)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  sugerencias          Sugerencia[]
+
+  @@index([localidad])
+  @@index([ciudad])
+  @@index([activo])
+  @@index([localidad, activo])
+  @@index([ciudad, activo])
+  @@index([vistas])
+}
+
+model Sugerencia {
+  id                    Int      @id @default(autoincrement())
+
+  nombre                String   @db.VarChar(255)
+  slug                  String   @unique @db.VarChar(255) // <— NUEVO (tu servicio ya lo usa)
+  direccion             String   @db.VarChar(500)
+  localidad             String   @db.VarChar(100)
+  ciudad                String   @db.VarChar(100)
+  provincia             String   @db.VarChar(100)
+  codigoPostal          String?  @db.VarChar(20)
+  pais                  String?  @db.VarChar(100)
+
+  telefonoRestaurante   String?  @db.VarChar(20)
+  emailRestaurante      String?  @db.VarChar(255)
+  descripcion           String   @db.Text
+
+  nombreContacto        String   @db.VarChar(100)
+  emailContacto         String?  @db.VarChar(255)
+  comentarios           String?  @db.Text
+
+  zonaAmplia            Boolean  @default(false)
+  parqueCercano         Boolean  @default(false)
+  zonaInfantil          Boolean  @default(false)
+  tronaDisponible       Boolean  @default(false)
+  cambiadorDisponible   Boolean  @default(false)
+  sitioParaCarrito      Boolean  @default(false)
+  terrazaSegura         Boolean  @default(false)
+  actividadesParaNinos  Boolean  @default(false)
+  menuInfantil          Boolean  @default(false)
+  aptoVegetariano       Boolean  @default(false)
+  aptoVegano            Boolean  @default(false)
+  sinPantallas          Boolean  @default(false)
+  ambienteFamiliar      Boolean  @default(false)
+  accesibleConCarrito   Boolean  @default(false)
+
+  latitud               Float?
+  longitud              Float?
+
+  estado                EstadoSugerencia @default(PENDIENTE)
+  creadaEn              DateTime         @default(now())
+  procesadaEn           DateTime?
+
+  restaurante           Restaurante? @relation(fields: [restauranteId], references: [id])
+  restauranteId         Int?
+
+  @@index([estado])
+  @@index([creadaEn])
+}
+
+enum EstadoSugerencia {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  DUPLICADA
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  nombre    String?  @db.VarChar(100)
+  activo    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+===== FILE: backend\prisma\seed.js =====
+
+const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
+
+const prisma = new PrismaClient();
+
+async function main() {
+  // Hashear contraseña
+  const hashedPassword = await bcrypt.hash("admin123", 10);
+
+  // Crear admin inicial
+  const admin = await prisma.admin.upsert({
+    where: { email: "admin@admin.com" },
+    update: {},
+    create: {
+      email: "admin@admin.com",
+      password: hashedPassword,
+    },
+  });
+
+  console.log("✅ Admin creado/actualizado:", admin.email);
+}
+
+main()
+  .catch((e) => {
+    console.error("❌ Error en el seed:", e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+
+
+===== FILE: backend\src\controllers\admin.controller.js =====
+
+const prisma = require("../prisma");
+const bcryptjs = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const logger = require("../logger");
+
+const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+
+async function login(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ message: "Email y contraseña son requeridos" });
+  }
+
+  try {
+    const admin = await prisma.admin.findUnique({ where: { email } });
+
+    if (!admin) {
+      return res.status(401).json({ message: "Credenciales incorrectas" });
+    }
+
+    if (!admin.activo) {
+      return res.status(403).json({ message: "Cuenta de admin inactiva" });
+    }
+
+    const validPassword = await bcryptjs.compare(password, admin.password);
+    if (!validPassword) {
+      return res.status(401).json({ message: "Credenciales incorrectas" });
+    }
+
+    const token = jwt.sign(
+      { adminId: admin.id, email: admin.email },
+      JWT_SECRET,
+      { expiresIn: "4h" }
+    );
+
+    return res.json({ token });
+  } catch (error) {
+    logger.error("Error en login admin: %o", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+async function register(req, res) {
+  const { email, password, nombre, activo = true } = req.body;
+
+  if (!password || (!email && !nombre)) {
+    return res
+      .status(400)
+      .json({ message: "Contraseña y al menos email o nombre son requeridos" });
+  }
+
+  try {
+    if (email) {
+      const existingAdmin = await prisma.admin.findUnique({ where: { email } });
+      if (existingAdmin) {
+        return res.status(409).json({ message: "El email ya está registrado" });
+      }
+    }
+
+    const hashedPassword = await bcryptjs.hash(password, 10);
+
+    const newAdmin = await prisma.admin.create({
+      data: {
+        email: email || null,
+        password: hashedPassword,
+        nombre: nombre || null,
+        activo,
+      },
+    });
+
+    return res
+      .status(201)
+      .json({ message: "Admin creado con éxito", adminId: newAdmin.id });
+  } catch (error) {
+    logger.error("Error en registro admin: %o", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+async function obtenerAdmins(req, res) {
+  try {
+    const admins = await prisma.admin.findMany({
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        activo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    res.json(admins);
+  } catch (error) {
+    logger.error("Error al obtener admins: %o", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+async function obtenerAdminPorId(req, res) {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10))) {
+    return res.status(400).json({ message: "ID inválido" });
+  }
+
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { id: parseInt(id, 10) },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        activo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!admin) {
+      return res.status(404).json({ message: "Admin no encontrado" });
+    }
+    res.json(admin);
+  } catch (error) {
+    logger.error("Error al obtener admin: %o", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+async function actualizarAdmin(req, res) {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10))) {
+    return res.status(400).json({ message: "ID inválido" });
+  }
+  const { email, nombre, activo, password } = req.body;
+  try {
+    let dataToUpdate = { email, nombre, activo };
+    if (password) {
+      dataToUpdate.password = await bcryptjs.hash(password, 10);
+    }
+    Object.keys(dataToUpdate).forEach(
+      (key) => dataToUpdate[key] === undefined && delete dataToUpdate[key]
+    );
+
+    const admin = await prisma.admin.update({
+      where: { id: parseInt(id, 10) },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        activo: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    res.json(admin);
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "Admin no encontrado" });
+    }
+    logger.error("Error al actualizar admin: %o", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+async function eliminarAdmin(req, res) {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10))) {
+    return res.status(400).json({ message: "ID inválido" });
+  }
+  try {
+    await prisma.admin.delete({
+      where: { id: parseInt(id, 10) },
+    });
+    res.json({ message: "Admin eliminado correctamente" });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "Admin no encontrado" });
+    }
+    logger.error("Error al eliminar admin: %o", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+module.exports = {
+  login,
+  register,
+  obtenerAdmins,
+  obtenerAdminPorId,
+  actualizarAdmin,
+  eliminarAdmin,
+};
+
+
+===== FILE: backend\src\controllers\restaurante.controller.js =====
+
+const prisma = require("../prisma");
+const logger = require("../logger");
+const { geocodeAddress } = require("../utils/geocoding");
+const restauranteService = require("../services/restaurante.service");
+
+// util slug sencillo (evita dependencias aquí)
+function slugify(text) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// 🔹 Normalizador para lat/lng
+function normNumberOrDelete(obj, key) {
+  if (obj[key] === "" || obj[key] === null || obj[key] === undefined) {
+    delete obj[key];
+  } else if (typeof obj[key] === "string") {
+    const n = Number(obj[key]);
+    if (Number.isFinite(n)) obj[key] = n;
+    else delete obj[key];
+  } else if (typeof obj[key] === "number") {
+    // ok
+  } else {
+    delete obj[key];
+  }
+}
+
+/** POST /api/restaurantes */
+async function crearRestaurante(req, res) {
+  try {
+    const body = { ...req.body };
+
+    // Requeridos mínimos
+    if (!body.nombre) {
+      return res
+        .status(400)
+        .json({ error: "El campo 'nombre' es obligatorio" });
+    }
+
+    // Defaults
+    if (!body.pais) body.pais = "España";
+    body.slug = slugify(body.nombre);
+
+    // imágenes siempre array
+    if (!Array.isArray(body.imagenes)) body.imagenes = [];
+
+    // normalizar coords
+    normNumberOrDelete(body, "latitud");
+    normNumberOrDelete(body, "longitud");
+
+    // geocodificar si faltan
+    const coordsMissing =
+      body.latitud === undefined || body.longitud === undefined;
+    if (coordsMissing) {
+      const geo = await geocodeAddress({
+        direccion: body.direccion,
+        localidad: body.localidad,
+        ciudad: body.ciudad,
+        provincia: body.provincia,
+        codigoPostal: body.codigoPostal,
+        pais: body.pais,
+      });
+      if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon)) {
+        body.latitud = geo.lat;
+        body.longitud = geo.lon;
+      }
+    }
+
+    // limpiar undefined
+    Object.keys(body).forEach((k) => body[k] === undefined && delete body[k]);
+
+    const restaurante = await prisma.restaurante.create({ data: body });
+    return res.status(201).json(restaurante);
+  } catch (error) {
+    if (error.code === "P2002" && error.meta?.target?.includes("slug")) {
+      return res.status(409).json({
+        error: "Ya existe un restaurante con ese nombre (slug duplicado)",
+      });
+    }
+    logger.error("Error al crear restaurante: %o", error);
+    return res.status(500).json({ error: "Error al crear restaurante" });
+  }
+}
+
+/** GET /api/restaurantes  (listado con filtros + paginación) */
+async function obtenerRestaurantes(req, res) {
+  try {
+    const {
+      q,
+      search,
+      ciudad,
+      localidad,
+      onlyWithCoords,
+      soloConCoordenadas,
+      matchMode,
+      sortBy,
+      page,
+      pageSize,
+      ...rawFlags
+    } = req.query;
+
+    const qFinal = q ?? search;
+    const onlyWithCoordsFinal =
+      String(onlyWithCoords ?? soloConCoordenadas) === "true";
+
+    const FLAG_KEYS = [
+      "zonaAmplia",
+      "parqueCercano",
+      "zonaInfantil",
+      "tronaDisponible",
+      "cambiadorDisponible",
+      "sitioParaCarrito",
+      "terrazaSegura",
+      "actividadesParaNinos",
+      "menuInfantil",
+      "aptoVegetariano",
+      "aptoVegano",
+      "sinPantallas",
+      "ambienteFamiliar",
+      "accesibleConCarrito",
+    ];
+    const flags = {};
+    for (const k of FLAG_KEYS) {
+      const v = rawFlags[k];
+      if (v === "true" || v === true) flags[k] = true;
+    }
+
+    const opts = {
+      q: qFinal ? String(qFinal) : undefined,
+      ciudad: ciudad || undefined,
+      localidad: localidad || undefined,
+      onlyWithCoords: onlyWithCoordsFinal,
+      matchMode: matchMode === "any" ? "any" : "all",
+      sortBy: sortBy || "nombre_asc",
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 10,
+      flags,
+    };
+
+    const {
+      items,
+      total,
+      page: curPage,
+      pageSize: curSize,
+    } = await restauranteService.obtenerFiltrados(opts);
+
+    const totalPages = Math.max(1, Math.ceil(total / curSize));
+
+    return res.json({
+      data: items,
+      meta: { total, page: curPage, pageSize: curSize, totalPages },
+    });
+  } catch (err) {
+    logger.error("Error al obtener restaurantes: %o", err);
+    return res.status(500).json({ error: "Error al obtener restaurantes" });
+  }
+}
+
+/** GET /api/restaurantes/:id (detalle) */
+async function obtenerRestaurantePorId(req, res) {
+  const { id } = req.params;
+  const parsed = parseInt(id, 10);
+  if (isNaN(parsed)) {
+    return res.status(400).json({ error: "ID inválido" });
+  }
+  try {
+    const r = await prisma.restaurante.findUnique({ where: { id: parsed } });
+    if (!r) return res.status(404).json({ error: "Restaurante no encontrado" });
+    return res.json(r);
+  } catch (err) {
+    logger.error("Error al obtener restaurante por id: %o", err);
+    return res.status(500).json({ error: "Error al obtener restaurante" });
+  }
+}
+
+/** PUT /api/restaurantes/:id */
+async function actualizarRestaurante(req, res) {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10))) {
+    return res.status(400).json({ error: "ID inválido" });
+  }
+
+  try {
+    const body = { ...req.body };
+    if (!body.pais) body.pais = "España";
+
+    if (body.nombre !== undefined) {
+      if (!body.nombre) {
+        return res
+          .status(400)
+          .json({ error: "El campo 'nombre' no puede ser vacío" });
+      }
+      body.slug = slugify(body.nombre);
+    }
+
+    if (body.imagenes !== undefined && !Array.isArray(body.imagenes)) {
+      body.imagenes = [];
+    }
+
+    normNumberOrDelete(body, "latitud");
+    normNumberOrDelete(body, "longitud");
+
+    const coordsMissing =
+      body.latitud === undefined || body.longitud === undefined;
+    const addressTouched = [
+      "direccion",
+      "localidad",
+      "ciudad",
+      "provincia",
+      "codigoPostal",
+      "pais",
+    ].some((f) => body[f] !== undefined);
+
+    if (coordsMissing && addressTouched) {
+      const geo = await geocodeAddress({
+        direccion: body.direccion,
+        localidad: body.localidad,
+        ciudad: body.ciudad,
+        provincia: body.provincia,
+        codigoPostal: body.codigoPostal,
+        pais: body.pais,
+      });
+      if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon)) {
+        body.latitud = geo.lat;
+        body.longitud = geo.lon;
+      }
+    }
+
+    Object.keys(body).forEach((k) => body[k] === undefined && delete body[k]);
+
+    const restaurante = await prisma.restaurante.update({
+      where: { id: parseInt(id, 10) },
+      data: body,
+    });
+    return res.json(restaurante);
+  } catch (error) {
+    if (error.code === "P2025")
+      return res.status(404).json({ error: "Restaurante no encontrado" });
+    if (error.code === "P2002" && error.meta?.target?.includes("slug")) {
+      return res.status(409).json({
+        error: "Ya existe un restaurante con ese nombre (slug duplicado)",
+      });
+    }
+    logger.error("Error al actualizar restaurante: %o", error);
+    return res.status(500).json({ error: "Error al actualizar restaurante" });
+  }
+}
+
+/** DELETE /api/restaurantes/:id */
+async function eliminarRestaurante(req, res) {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    await prisma.restaurante.delete({ where: { id: parseInt(id, 10) } });
+    return res.json({ mensaje: "Restaurante eliminado correctamente" });
+  } catch (error) {
+    if (error.code === "P2025")
+      return res.status(404).json({ error: "Restaurante no encontrado" });
+    logger.error("Error al eliminar restaurante: %o", error);
+    return res.status(500).json({ error: "Error al eliminar restaurante" });
+  }
+}
+
+/** POST /api/restaurantes/:id/regeocode */
+async function regeocodificar(req, res) {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    const r = await prisma.restaurante.findUnique({
+      where: { id: parseInt(id, 10) },
+    });
+    if (!r) return res.status(404).json({ error: "Restaurante no encontrado" });
+
+    const geo = await geocodeAddress({
+      direccion: r.direccion,
+      localidad: r.localidad,
+      ciudad: r.ciudad,
+      provincia: r.provincia,
+      codigoPostal: r.codigoPostal,
+      pais: r.pais || "España",
+    });
+
+    if (!geo)
+      return res
+        .status(422)
+        .json({ error: "No se pudieron obtener coordenadas" });
+
+    const actualizado = await prisma.restaurante.update({
+      where: { id: r.id },
+      data: { latitud: geo.lat, longitud: geo.lon },
+    });
+
+    return res.json(actualizado);
+  } catch (error) {
+    logger.error("Error al re-geocodificar restaurante: %o", error);
+    return res.status(500).json({ error: "Error al re-geocodificar" });
+  }
+}
+
+module.exports = {
+  crearRestaurante,
+  obtenerRestaurantes,
+  obtenerRestaurantePorId,
+  actualizarRestaurante,
+  eliminarRestaurante,
+  regeocodificar,
+};
+
+
+===== FILE: backend\src\controllers\sugerencia.controller.js =====
+
+const sugerenciaService = require("../services/sugerencia.service");
+const restauranteService = require("../services/restaurante.service");
+const logger = require("../logger");
+const { geocodeAddress } = require("../utils/geocoding");
+
+// Frases motivadoras
+const frasesGracias = [
+  '¡Gracias por tu sugerencia! El restaurante "{nombre}" ha sido registrado y será revisado.',
+  '¡Genial! Hemos recibido la sugerencia para "{nombre}". Nuestro equipo la revisará pronto.',
+  '¡Perfecto! "{nombre}" está en nuestra lista para evaluación. ¡Gracias por colaborar!',
+  '¡Tu sugerencia para "{nombre}" ha sido anotada! Te avisaremos cuando sea verificada.',
+  '¡Gracias por ayudarnos a mejorar! "{nombre}" será revisado por nuestro equipo muy pronto.',
+];
+
+function fraseAleatoria(nombre) {
+  const frase = frasesGracias[Math.floor(Math.random() * frasesGracias.length)];
+  return frase.replace("{nombre}", nombre);
+}
+
+// POST crear
+const crearSugerencia = async (req, res) => {
+  logger.info("Datos recibidos para crear sugerencia:", req.body);
+  try {
+    const {
+      nombre,
+      direccion,
+      descripcion,
+      localidad,
+      ciudad,
+      provincia,
+      nombreContacto,
+      emailContacto,
+      comentarios,
+      zonaAmplia,
+      parqueCercano,
+      zonaInfantil,
+      tronaDisponible,
+      cambiadorDisponible,
+      sitioParaCarrito,
+      terrazaSegura,
+      actividadesParaNinos,
+      menuInfantil,
+      aptoVegetariano,
+      aptoVegano,
+      sinPantallas,
+      ambienteFamiliar,
+      accesibleConCarrito,
+      codigoPostal,
+      pais,
+      latitud,
+      longitud,
+    } = req.body;
+
+    if (
+      !nombre ||
+      !direccion ||
+      !descripcion ||
+      !localidad ||
+      !ciudad ||
+      !provincia ||
+      !nombreContacto
+    ) {
+      return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+
+    const nuevaSugerencia = await sugerenciaService.crearSugerencia({
+      nombre,
+      direccion,
+      descripcion,
+      localidad,
+      ciudad,
+      provincia,
+      nombreContacto,
+      emailContacto,
+      comentarios,
+      zonaAmplia,
+      parqueCercano,
+      zonaInfantil,
+      tronaDisponible,
+      cambiadorDisponible,
+      sitioParaCarrito,
+      terrazaSegura,
+      actividadesParaNinos,
+      menuInfantil,
+      aptoVegetariano,
+      aptoVegano,
+      sinPantallas,
+      ambienteFamiliar,
+      accesibleConCarrito,
+      codigoPostal,
+      pais,
+      latitud,
+      longitud,
+    });
+
+    res.status(201).json({
+      mensaje: fraseAleatoria(nuevaSugerencia.nombre),
+      sugerencia: nuevaSugerencia,
+    });
+  } catch (error) {
+    logger.error("Error al crear sugerencia:", error);
+    res.status(500).json({ error: "Error al crear sugerencia" });
+  }
+};
+
+// GET paginado + filtros
+const obtenerSugerencias = async (req, res) => {
+  try {
+    const { page = 1, pageSize = 20, estado, search } = req.query;
+    const result = await sugerenciaService.obtenerTodos({
+      page: Number(page),
+      pageSize: Number(pageSize),
+      estado: estado || undefined,
+      search: search || undefined,
+    });
+    res.json(result);
+  } catch (error) {
+    logger.error("Error al obtener sugerencias: %o", error);
+    res.status(500).json({ error: "Error al obtener sugerencias" });
+  }
+};
+
+// GET por id
+const obtenerSugerenciaPorId = async (req, res) => {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    const sugerencia = await sugerenciaService.obtenerPorId(id);
+    if (!sugerencia)
+      return res.status(404).json({ error: "Sugerencia no encontrada" });
+    res.json(sugerencia);
+  } catch (error) {
+    logger.error("Error al obtener sugerencia: %o", error);
+    res.status(500).json({ error: "Error al obtener sugerencia" });
+  }
+};
+
+// PUT update completo
+const actualizarSugerencia = async (req, res) => {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    const sugerenciaActualizada = await sugerenciaService.actualizarSugerencia(
+      id,
+      req.body
+    );
+    res.json(sugerenciaActualizada);
+  } catch (error) {
+    if (error.code === "P2025")
+      return res.status(404).json({ error: "Sugerencia no encontrada" });
+    logger.error("Error al actualizar sugerencia: %o", error);
+    res.status(500).json({ error: "Error al actualizar sugerencia" });
+  }
+};
+
+// PATCH estado (acepta minúsculas/mayúsculas)
+const actualizarEstado = async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+  if (!estado) return res.status(400).json({ error: "Estado requerido" });
+
+  try {
+    const updated = await sugerenciaService.actualizarEstado(id, estado);
+    if (!updated)
+      return res
+        .status(400)
+        .json({ error: "Estado inválido o sugerencia no encontrada" });
+    res.json(updated);
+  } catch (error) {
+    logger.error("Error al actualizar estado de sugerencia: %o", error);
+    res.status(500).json({ error: "Error al actualizar estado" });
+  }
+};
+
+// DELETE
+const eliminarSugerencia = async (req, res) => {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    await sugerenciaService.eliminar(id);
+    res.json({ mensaje: "Sugerencia eliminada correctamente" });
+  } catch (error) {
+    if (error.code === "P2025")
+      return res.status(404).json({ error: "Sugerencia no encontrada" });
+    logger.error("Error al eliminar sugerencia: %o", error);
+    res.status(500).json({ error: "Error al eliminar sugerencia" });
+  }
+};
+
+// POST aprobar -> crea Restaurante + linkea sugerencia + marca procesada
+const aprobarSugerencia = async (req, res) => {
+  const { id } = req.params;
+  if (isNaN(parseInt(id, 10)))
+    return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    const sugerencia = await sugerenciaService.obtenerPorId(id);
+    if (!sugerencia)
+      return res.status(404).json({ error: "Sugerencia no encontrada" });
+
+    const dataRest = {
+      nombre: sugerencia.nombre,
+      direccion: sugerencia.direccion,
+      descripcion: sugerencia.descripcion,
+      localidad: sugerencia.localidad,
+      ciudad: sugerencia.ciudad,
+      provincia: sugerencia.provincia,
+      codigoPostal: sugerencia.codigoPostal || null,
+      pais: sugerencia.pais || "España",
+      telefonoRestaurante: sugerencia.telefonoRestaurante || null,
+      emailRestaurante: sugerencia.emailRestaurante || null,
+
+      zonaAmplia: sugerencia.zonaAmplia,
+      parqueCercano: sugerencia.parqueCercano,
+      zonaInfantil: sugerencia.zonaInfantil,
+      tronaDisponible: sugerencia.tronaDisponible,
+      cambiadorDisponible: sugerencia.cambiadorDisponible,
+      sitioParaCarrito: sugerencia.sitioParaCarrito,
+      terrazaSegura: sugerencia.terrazaSegura,
+      actividadesParaNinos: sugerencia.actividadesParaNinos,
+      menuInfantil: sugerencia.menuInfantil,
+      aptoVegetariano: sugerencia.aptoVegetariano,
+      aptoVegano: sugerencia.aptoVegano,
+      sinPantallas: sugerencia.sinPantallas,
+      ambienteFamiliar: sugerencia.ambienteFamiliar,
+      accesibleConCarrito: sugerencia.accesibleConCarrito,
+
+      activo: true,
+      verificado: true,
+      imagenes: [],
+    };
+
+    if (sugerencia.latitud != null && sugerencia.longitud != null) {
+      dataRest.latitud = sugerencia.latitud;
+      dataRest.longitud = sugerencia.longitud;
+    } else {
+      const geo = await geocodeAddress({
+        direccion: dataRest.direccion,
+        localidad: dataRest.localidad,
+        ciudad: dataRest.ciudad,
+        provincia: dataRest.provincia,
+        codigoPostal: dataRest.codigoPostal,
+        pais: dataRest.pais,
+      });
+      if (geo) {
+        dataRest.latitud = geo.lat;
+        dataRest.longitud = geo.lon;
+      }
+    }
+
+    const nuevoRestaurante = await restauranteService.crear(dataRest);
+
+    // Marcar sugerencia como APROBADA, linkear restaurante y setear procesadaEn
+    await sugerenciaService.actualizarSugerencia(id, {
+      estado: "APROBADA",
+      restauranteId: nuevoRestaurante.id,
+      procesadaEn: new Date(),
+    });
+
+    res.status(201).json({
+      mensaje: "Sugerencia aprobada y convertida en restaurante",
+      restaurante: nuevoRestaurante,
+    });
+  } catch (error) {
+    logger.error("Error al aprobar sugerencia: %o", error);
+    res.status(500).json({ error: "Error al aprobar sugerencia" });
+  }
+};
+
+module.exports = {
+  crearSugerencia,
+  obtenerSugerencias,
+  obtenerSugerenciaPorId,
+  actualizarSugerencia,
+  actualizarEstado,
+  eliminarSugerencia,
+  aprobarSugerencia,
+};
+
+
+===== FILE: backend\src\middlewares\auth.middleware.js =====
+
+const jwt = require("jsonwebtoken");
+const prisma = require("../prisma");
+const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+
+module.exports = async (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+
+  if (!authHeader) {
+    return res.status(401).json({ error: "Token no proporcionado" });
+  }
+
+  // El header debe tener formato: "Bearer <token>"
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Token mal formateado" });
+  }
+
+  try {
+    // Verificamos el token
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Buscar admin en DB para comprobar si sigue activo
+    const admin = await prisma.admin.findUnique({
+      where: { id: decoded.adminId },
+    });
+
+    if (!admin) {
+      return res.status(401).json({ error: "Admin no encontrado" });
+    }
+
+    if (!admin.activo) {
+      return res.status(403).json({ error: "Cuenta de admin inactiva" });
+    }
+
+    // Guardamos info del admin para usar en la ruta
+    req.admin = {
+      id: admin.id,
+      email: admin.email,
+    };
+
+    next(); // Todo bien, dejamos pasar
+  } catch (err) {
+    return res.status(401).json({ error: "Token inválido o expirado" });
+  }
+};
+
+
+===== FILE: backend\src\middlewares\validarRestaurante.js =====
+
+module.exports = (req, res, next) => {
+  const b = req.body || {};
+
+  // Requeridos SOLO en POST (crear)
+  if (req.method === "POST") {
+    const obligatorios = [
+      "nombre",
+      "direccion",
+      "localidad",
+      "ciudad",
+      "provincia",
+      "descripcion",
+    ];
+    for (const f of obligatorios) {
+      if (!b[f] || String(b[f]).trim() === "") {
+        return res
+          .status(400)
+          .json({ error: `El campo '${f}' es obligatorio` });
+      }
+    }
+  }
+
+  // Tipos simples
+  if (b.telefonoRestaurante && typeof b.telefonoRestaurante !== "string") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'telefonoRestaurante' debe ser string" });
+  }
+  if (b.emailRestaurante && typeof b.emailRestaurante !== "string") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'emailRestaurante' debe ser string" });
+  }
+
+  // Imágenes: si viene, debe ser array
+  if (b.imagenes !== undefined && !Array.isArray(b.imagenes)) {
+    return res
+      .status(400)
+      .json({ error: "El campo 'imagenes' debe ser un arreglo de strings" });
+  }
+
+  // Coordenadas opcionales: solo valida si traen valor
+  const checkNum = (v, field) => {
+    if (v === undefined || v === null || v === "") return;
+    const n = Number(v);
+    if (!Number.isFinite(n)) {
+      return res
+        .status(400)
+        .json({ error: `El campo '${field}' debe ser número` });
+    }
+  };
+  const e1 = checkNum(b.latitud, "latitud");
+  if (e1) return e1;
+  const e2 = checkNum(b.longitud, "longitud");
+  if (e2) return e2;
+
+  // Flags booleanas (acepta boolean o "true"/"false" y las normaliza)
+  const booleanFields = [
+    "zonaAmplia",
+    "parqueCercano",
+    "zonaInfantil",
+    "menuInfantil",
+    "tronaDisponible",
+    "cambiadorDisponible",
+    "sitioParaCarrito",
+    "terrazaSegura",
+    "ambienteFamiliar",
+    "sinPantallas",
+    "aptoVegetariano",
+    "aptoVegano",
+    "actividadesParaNinos",
+    "accesibleConCarrito",
+    "activo",
+    "verificado",
+  ];
+  for (const f of booleanFields) {
+    if (b[f] === "true") b[f] = true;
+    if (b[f] === "false") b[f] = false;
+    if (b[f] !== undefined && typeof b[f] !== "boolean") {
+      return res
+        .status(400)
+        .json({ error: `El campo '${f}' debe ser booleano` });
+    }
+  }
+
+  // País por defecto
+  if (!b.pais) req.body.pais = "España";
+
+  next();
+};
+
+
+===== FILE: backend\src\middlewares\validarSugerencia.js =====
+
+module.exports = (req, res, next) => {
+  const {
+    nombre,
+    direccion,
+    localidad,
+    ciudad,
+    provincia,
+    codigoPostal,
+    pais,
+    descripcion,
+    telefonoRestaurante,
+    emailRestaurante,
+    imagenes,
+    estado,
+    latitud,
+    longitud,
+  } = req.body;
+
+  if (!nombre?.trim())
+    return res.status(400).json({ error: "El campo 'nombre' es obligatorio" });
+  if (!direccion?.trim())
+    return res
+      .status(400)
+      .json({ error: "El campo 'direccion' es obligatorio" });
+  if (!localidad?.trim())
+    return res
+      .status(400)
+      .json({ error: "El campo 'localidad' es obligatorio" });
+  if (!ciudad?.trim())
+    return res.status(400).json({ error: "El campo 'ciudad' es obligatorio" });
+  if (!provincia?.trim())
+    return res
+      .status(400)
+      .json({ error: "El campo 'provincia' es obligatorio" });
+  if (!descripcion?.trim())
+    return res
+      .status(400)
+      .json({ error: "El campo 'descripcion' es obligatorio" });
+
+  if (telefonoRestaurante && typeof telefonoRestaurante !== "string") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'telefonoRestaurante' debe ser string" });
+  }
+  if (emailRestaurante && typeof emailRestaurante !== "string") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'emailRestaurante' debe ser string" });
+  }
+  if (imagenes) {
+    if (!Array.isArray(imagenes))
+      return res
+        .status(400)
+        .json({ error: "El campo 'imagenes' debe ser un arreglo de strings" });
+    if (imagenes.some((img) => typeof img !== "string"))
+      return res
+        .status(400)
+        .json({ error: "Todas las imágenes deben ser strings" });
+  }
+  if (estado && typeof estado !== "string") {
+    return res.status(400).json({ error: "El campo 'estado' debe ser string" });
+  }
+
+  if (latitud !== undefined && typeof latitud !== "number") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'latitud' debe ser número" });
+  }
+  if (longitud !== undefined && typeof longitud !== "number") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'longitud' debe ser número" });
+  }
+
+  // normaliza país por defecto si no viene
+  if (!pais) req.body.pais = "España";
+
+  const booleanFields = [
+    "zonaAmplia",
+    "parqueCercano",
+    "zonaInfantil",
+    "menuInfantil",
+    "tronaDisponible",
+    "cambiadorDisponible",
+    "sitioParaCarrito",
+    "terrazaSegura",
+    "ambienteFamiliar",
+    "sinPantallas",
+    "aptoVegetariano",
+    "aptoVegano",
+    "actividadesParaNinos",
+    "accesibleConCarrito",
+  ];
+  for (const field of booleanFields) {
+    if (
+      req.body[field] !== undefined &&
+      typeof req.body[field] !== "boolean" &&
+      req.body[field] !== "true" &&
+      req.body[field] !== "false"
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: `El campo '${field}' debe ser booleano o 'true'/'false'`,
+        });
+    }
+  }
+
+  next();
+};
+
+
+===== FILE: backend\src\routes\admin.routes.js =====
+
+const express = require("express");
+const router = express.Router();
+
+const {
+  login,
+  register,
+  obtenerAdmins,
+  obtenerAdminPorId,
+  actualizarAdmin,
+  eliminarAdmin,
+} = require("../controllers/admin.controller");
+
+const authMiddleware = require("../middlewares/auth.middleware");
+
+/**
+ * @swagger
+ * tags:
+ *   name: Admins
+ *   description: Gestión de administradores
+ */
+
+/**
+ * @swagger
+ * /admin/login:
+ *   post:
+ *     summary: Iniciar sesión como administrador
+ *     tags: [Admins]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Sesión iniciada correctamente
+ *       401:
+ *         description: Credenciales inválidas
+ */
+router.post("/login", login);
+
+/**
+ * @swagger
+ * /admin/register:
+ *   post:
+ *     summary: Registrar un nuevo administrador
+ *     tags: [Admins]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nombre
+ *               - email
+ *               - password
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Administrador registrado correctamente
+ *       400:
+ *         description: Datos inválidos
+ */
+router.post("/register", register);
+
+/**
+ * @swagger
+ * /admin:
+ *   get:
+ *     summary: Obtener todos los administradores
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de administradores
+ */
+router.get("/", authMiddleware, obtenerAdmins);
+
+/**
+ * @swagger
+ * /admin/{id}:
+ *   get:
+ *     summary: Obtener un administrador por ID
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Administrador encontrado
+ *       404:
+ *         description: Administrador no encontrado
+ */
+router.get("/:id", authMiddleware, obtenerAdminPorId);
+
+/**
+ * @swagger
+ * /admin/{id}:
+ *   put:
+ *     summary: Actualizar un administrador por ID
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Administrador actualizado correctamente
+ *       404:
+ *         description: Administrador no encontrado
+ */
+router.put("/:id", authMiddleware, actualizarAdmin);
+
+/**
+ * @swagger
+ * /admin/{id}:
+ *   delete:
+ *     summary: Eliminar un administrador por ID
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Administrador eliminado correctamente
+ *       404:
+ *         description: Administrador no encontrado
+ */
+router.delete("/:id", authMiddleware, eliminarAdmin);
+
+module.exports = router;
+
+
+===== FILE: backend\src\routes\restaurante.routes.js =====
+
+// src/routes/restaurante.routes.js
+const express = require("express");
+const router = express.Router();
+const restauranteController = require("../controllers/restaurante.controller");
+const validarRestaurante = require("../middlewares/validarRestaurante");
+const authMiddleware = require("../middlewares/auth.middleware");
+
+/**
+ * @swagger
+ * tags:
+ *   name: Restaurantes
+ *   description: Endpoints para gestionar restaurantes
+ */
+
+// Lista pública
+/**
+ * @swagger
+ * /restaurantes:
+ *   get:
+ *     summary: Listado público de restaurantes con filtros y paginación
+ *     tags: [Restaurantes]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *       - in: query
+ *         name: ciudad
+ *         schema: { type: string }
+ *       - in: query
+ *         name: onlyWithCoords
+ *         schema: { type: boolean, default: false }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, default: 10 }
+ *     responses:
+ *       200:
+ *         description: OK
+ */
+router.get("/", restauranteController.obtenerRestaurantes);
+
+// ✅ Detalle por id — PÚBLICO (sin auth)
+/**
+ * @swagger
+ * /restaurantes/{id}:
+ *   get:
+ *     summary: Obtener restaurante por ID (público)
+ *     tags: [Restaurantes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: OK
+ *       404:
+ *         description: No encontrado
+ */
+router.get("/:id", restauranteController.obtenerRestaurantePorId);
+
+// Crear (admin)
+router.post(
+  "/",
+  authMiddleware,
+  validarRestaurante,
+  restauranteController.crearRestaurante
+);
+
+// Actualizar (admin)
+router.put(
+  "/:id",
+  authMiddleware,
+  validarRestaurante,
+  restauranteController.actualizarRestaurante
+);
+
+// Eliminar (admin)
+router.delete(
+  "/:id",
+  authMiddleware,
+  restauranteController.eliminarRestaurante
+);
+
+// Re-geocodificar (admin)
+router.post(
+  "/:id/regeocode",
+  authMiddleware,
+  restauranteController.regeocodificar
+);
+
+module.exports = router;
+
+
+===== FILE: backend\src\routes\sugerencia.routes.js =====
+
+const express = require("express");
+const router = express.Router();
+const sugerenciaController = require("../controllers/sugerencia.controller");
+const validarSugerencia = require("../middlewares/validarSugerencia");
+const authMiddleware = require("../middlewares/auth.middleware");
+
+/**
+ * @swagger
+ * tags:
+ *   name: Sugerencias
+ *   description: Gestión de sugerencias
+ */
+
+/**
+ * @swagger
+ * /sugerencias:
+ *   get:
+ *     summary: Obtener sugerencias paginadas (solo admin)
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *           enum: [pendiente, aprobada, rechazada, duplicada]
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Lista paginada de sugerencias con meta
+ */
+router.get("/", authMiddleware, sugerenciaController.obtenerSugerencias);
+
+/**
+ * @swagger
+ * /sugerencias/{id}:
+ *   get:
+ *     summary: Obtener una sugerencia por ID
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Detalles de la sugerencia
+ *       404:
+ *         description: Sugerencia no encontrada
+ */
+router.get("/:id", authMiddleware, sugerenciaController.obtenerSugerenciaPorId);
+
+/**
+ * @swagger
+ * /sugerencias:
+ *   post:
+ *     summary: Crear una nueva sugerencia (público)
+ *     tags: [Sugerencias]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SugerenciaInput'
+ *     responses:
+ *       201:
+ *         description: Sugerencia creada
+ *       400:
+ *         description: Datos inválidos
+ */
+router.post("/", validarSugerencia, sugerenciaController.crearSugerencia);
+
+/**
+ * @swagger
+ * /sugerencias/{id}:
+ *   put:
+ *     summary: Actualizar una sugerencia (solo admin)
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SugerenciaInput'
+ *     responses:
+ *       200:
+ *         description: Sugerencia actualizada
+ *       404:
+ *         description: No encontrada
+ */
+router.put(
+  "/:id",
+  authMiddleware,
+  validarSugerencia,
+  sugerenciaController.actualizarSugerencia
+);
+
+/**
+ * @swagger
+ * /sugerencias/{id}:
+ *   patch:
+ *     summary: Actualizar el estado de una sugerencia (solo admin)
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [estado]
+ *             properties:
+ *               estado:
+ *                 type: string
+ *                 enum: [pendiente, aprobada, rechazada, duplicada]
+ *     responses:
+ *       200:
+ *         description: Estado actualizado
+ *       400:
+ *         description: Estado inválido
+ *       404:
+ *         description: Sugerencia no encontrada
+ */
+router.patch("/:id", authMiddleware, sugerenciaController.actualizarEstado);
+
+/**
+ * @swagger
+ * /sugerencias/{id}/aprobar:
+ *   post:
+ *     summary: Aprobar sugerencia (crear restaurante y marcar procesada)
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: Sugerencia aprobada y restaurante creado
+ *       404:
+ *         description: Sugerencia no encontrada
+ */
+router.post(
+  "/:id/aprobar",
+  authMiddleware,
+  sugerenciaController.aprobarSugerencia
+);
+
+/**
+ * @swagger
+ * /sugerencias/{id}:
+ *   delete:
+ *     summary: Eliminar sugerencia
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Sugerencia eliminada
+ *       404:
+ *         description: No encontrada
+ */
+router.delete("/:id", authMiddleware, sugerenciaController.eliminarSugerencia);
+
+module.exports = router;
+
+
+===== FILE: backend\src\services\restaurante.service.js =====
+
+// src/services/restaurante.service.js
+const prisma = require("../prisma");
+const slugify = require("slugify");
+
+/* -------------------------- helpers pequeños -------------------------- */
+const isFilled = (v) =>
+  typeof v === "string" ? v.trim().length > 0 : v != null;
+
+const toStr = (v) =>
+  typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
+
+const parseBool = (v) => {
+  if (v === true) return true;
+  if (v === false) return false;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    return s === "true" || s === "1" || s === "on" || s === "yes";
+  }
+  return Boolean(v);
+};
+
+const clampInt = (n, min, max, fallback) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.max(min, Math.min(max, Math.trunc(x)));
+};
+
+/* ------------------------------ crear --------------------------------- */
+/** Crear (si lo llamas desde otra capa) */
+exports.crear = async (data) => {
+  const slug = slugify(data.nombre, { lower: true, strict: true });
+  return prisma.restaurante.create({
+    data: {
+      ...data,
+      slug,
+      imagenes: Array.isArray(data.imagenes) ? data.imagenes : [],
+    },
+  });
+};
+
+/* --------------------- listado con filtros + paginación ----------------
+ * opts:
+ *  - q: string (búsqueda libre en varios campos)
+ *  - ciudad, localidad: string (si llega cualquiera, se usa OR)
+ *  - onlyWithCoords: boolean ("true"/"1"/true)
+ *  - flags: objeto con booleanos (zonaAmplia, parqueCercano, etc.)
+ *  - matchMode: "all" | "any"  (cómo combinar flags)
+ *  - sortBy: "nombre_asc" | "nombre_desc" | "ciudad_asc" | "ciudad_desc"
+ *  - page: number  (>=1)
+ *  - pageSize: number (1..100)
+ */
+exports.obtenerFiltrados = async (opts = {}) => {
+  // Normalizamos inputs
+  const q = toStr(opts.q);
+  const ciudad = toStr(opts.ciudad);
+  const localidad = toStr(opts.localidad);
+  const onlyWithCoords = parseBool(opts.onlyWithCoords);
+  const matchMode = opts.matchMode === "any" ? "any" : "all";
+  const sortBy = toStr(opts.sortBy) || "nombre_asc";
+
+  // Paginación segura
+  const page = clampInt(opts.page, 1, 1_000_000, 1);
+  const pageSize = clampInt(opts.pageSize, 1, 100, 10);
+  const skip = (page - 1) * pageSize;
+  const take = pageSize;
+
+  // where dinámico
+  const AND = [];
+
+  if (isFilled(q)) {
+    AND.push({
+      OR: [
+        { nombre: { contains: q, mode: "insensitive" } },
+        { direccion: { contains: q, mode: "insensitive" } },
+        { ciudad: { contains: q, mode: "insensitive" } },
+        { localidad: { contains: q, mode: "insensitive" } },
+        { descripcion: { contains: q, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  if (isFilled(ciudad) || isFilled(localidad)) {
+    const c = isFilled(ciudad) ? ciudad : localidad;
+    AND.push({
+      OR: [
+        { ciudad: { contains: c, mode: "insensitive" } },
+        { localidad: { contains: c, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  if (onlyWithCoords) {
+    AND.push({ latitud: { not: null } }, { longitud: { not: null } });
+  }
+
+  // Flags
+  const rawFlags =
+    opts.flags && typeof opts.flags === "object" ? opts.flags : {};
+  const selectedFlags = Object.entries(rawFlags)
+    .filter(([, v]) => parseBool(v))
+    .map(([k]) => k);
+
+  if (selectedFlags.length > 0) {
+    if (matchMode === "any") {
+      AND.push({ OR: selectedFlags.map((k) => ({ [k]: true })) });
+    } else {
+      for (const k of selectedFlags) AND.push({ [k]: true });
+    }
+  }
+
+  const where = AND.length ? { AND } : undefined;
+
+  // orderBy
+  let orderBy = [{ nombre: "asc" }];
+  switch (sortBy) {
+    case "nombre_desc":
+      orderBy = [{ nombre: "desc" }];
+      break;
+    case "ciudad_asc":
+      orderBy = [{ ciudad: "asc" }, { localidad: "asc" }, { nombre: "asc" }];
+      break;
+    case "ciudad_desc":
+      orderBy = [{ ciudad: "desc" }, { localidad: "desc" }, { nombre: "asc" }];
+      break;
+    case "nombre_asc":
+    default:
+      orderBy = [{ nombre: "asc" }];
+  }
+
+  // Consulta + total
+  const [total, items] = await Promise.all([
+    prisma.restaurante.count({ where }),
+    prisma.restaurante.findMany({ where, orderBy, skip, take }),
+  ]);
+
+  return { items, total, page, pageSize };
+};
+
+/* -------------------- (legacy) obtener con filtros simples ------------- */
+exports.obtenerTodos = async (query = {}) => {
+  const {
+    direccion,
+    ciudad,
+    provincia,
+    localidad,
+    zonaAmplia,
+    parqueCercano,
+    zonaInfantil,
+    menuInfantil,
+    tronaDisponible,
+    cambiadorDisponible,
+    sitioParaCarrito,
+    terrazaSegura,
+    ambienteFamiliar,
+    sinPantallas,
+    aptoVegetariano,
+    aptoVegano,
+    actividadesParaNinos,
+    accesibleConCarrito,
+    activo,
+    verificado,
+  } = query;
+
+  const filtros = {};
+  if (isFilled(direccion))
+    filtros.direccion = { contains: toStr(direccion), mode: "insensitive" };
+  if (isFilled(ciudad))
+    filtros.ciudad = { contains: toStr(ciudad), mode: "insensitive" };
+  if (isFilled(provincia))
+    filtros.provincia = { contains: toStr(provincia), mode: "insensitive" };
+  if (isFilled(localidad))
+    filtros.localidad = { contains: toStr(localidad), mode: "insensitive" };
+
+  // booleanos
+  if (zonaAmplia != null) filtros.zonaAmplia = parseBool(zonaAmplia);
+  if (parqueCercano != null) filtros.parqueCercano = parseBool(parqueCercano);
+  if (zonaInfantil != null) filtros.zonaInfantil = parseBool(zonaInfantil);
+  if (menuInfantil != null) filtros.menuInfantil = parseBool(menuInfantil);
+  if (tronaDisponible != null)
+    filtros.tronaDisponible = parseBool(tronaDisponible);
+  if (cambiadorDisponible != null)
+    filtros.cambiadorDisponible = parseBool(cambiadorDisponible);
+  if (sitioParaCarrito != null)
+    filtros.sitioParaCarrito = parseBool(sitioParaCarrito);
+  if (terrazaSegura != null) filtros.terrazaSegura = parseBool(terrazaSegura);
+  if (ambienteFamiliar != null)
+    filtros.ambienteFamiliar = parseBool(ambienteFamiliar);
+  if (sinPantallas != null) filtros.sinPantallas = parseBool(sinPantallas);
+  if (aptoVegetariano != null)
+    filtros.aptoVegetariano = parseBool(aptoVegetariano);
+  if (aptoVegano != null) filtros.aptoVegano = parseBool(aptoVegano);
+  if (actividadesParaNinos != null)
+    filtros.actividadesParaNinos = parseBool(actividadesParaNinos);
+  if (accesibleConCarrito != null)
+    filtros.accesibleConCarrito = parseBool(accesibleConCarrito);
+  if (activo != null) filtros.activo = parseBool(activo);
+  if (verificado != null) filtros.verificado = parseBool(verificado);
+
+  return prisma.restaurante.findMany({
+    where: filtros,
+    orderBy: { createdAt: "desc" },
+  });
+};
+
+/* ---------------------------- utilidades CRUD --------------------------- */
+exports.obtenerPorId = (id) =>
+  prisma.restaurante.findUnique({ where: { id: Number(id) } });
+
+exports.obtenerPorSlug = (slug) =>
+  prisma.restaurante.findUnique({ where: { slug } });
+
+exports.actualizar = (id, data) => {
+  const actualizaSlug =
+    data.nombre && typeof data.nombre === "string"
+      ? slugify(data.nombre, { lower: true, strict: true })
+      : undefined;
+
+  return prisma.restaurante.update({
+    where: { id: Number(id) },
+    data: {
+      ...data,
+      slug: actualizaSlug || undefined,
+      imagenes: Array.isArray(data.imagenes) ? data.imagenes : undefined,
+    },
+  });
+};
+
+exports.eliminar = (id) =>
+  prisma.restaurante.delete({ where: { id: Number(id) } });
+
+
+===== FILE: backend\src\services\sugerencia.service.js =====
+
+const { PrismaClient, EstadoSugerencia } = require("@prisma/client");
+const prisma = new PrismaClient();
+const slugify = require("slugify");
+
+/** Crear */
+exports.crearSugerencia = async (data) => {
+  try {
+    const slug = slugify(data.nombre, { lower: true, strict: true });
+    return await prisma.sugerencia.create({
+      data: {
+        nombre: data.nombre,
+        slug, // ahora existe en el modelo
+        direccion: data.direccion,
+        descripcion: data.descripcion,
+        localidad: data.localidad,
+        ciudad: data.ciudad,
+        provincia: data.provincia,
+        nombreContacto: data.nombreContacto,
+        emailContacto: data.emailContacto || null,
+        comentarios: data.comentarios || null,
+
+        zonaAmplia: !!data.zonaAmplia,
+        parqueCercano: !!data.parqueCercano,
+        zonaInfantil: !!data.zonaInfantil,
+        tronaDisponible: !!data.tronaDisponible,
+        cambiadorDisponible: !!data.cambiadorDisponible,
+        sitioParaCarrito: !!data.sitioParaCarrito,
+        terrazaSegura: !!data.terrazaSegura,
+        actividadesParaNinos: !!data.actividadesParaNinos,
+        menuInfantil: !!data.menuInfantil,
+        aptoVegetariano: !!data.aptoVegetariano,
+        aptoVegano: !!data.aptoVegano,
+        sinPantallas: !!data.sinPantallas,
+        ambienteFamiliar: !!data.ambienteFamiliar,
+        accesibleConCarrito: !!data.accesibleConCarrito,
+
+        codigoPostal: data.codigoPostal || null,
+        pais: data.pais || null,
+
+        latitud: data.latitud ?? null,
+        longitud: data.longitud ?? null,
+
+        // estado por defecto: PENDIENTE (definido en Prisma)
+      },
+    });
+  } catch (error) {
+    throw new Error("Error creando sugerencia: " + error.message);
+  }
+};
+
+/** Listado paginado + filtros + búsqueda */
+exports.obtenerTodos = async ({
+  page = 1,
+  pageSize = 20,
+  estado,
+  search,
+} = {}) => {
+  try {
+    const where = {};
+    if (estado) {
+      // admitimos 'pendiente'/'PENDIENTE'/'Pendiente'
+      const normalized = String(estado).toUpperCase();
+      if (
+        ["PENDIENTE", "APROBADA", "RECHAZADA", "DUPLICADA"].includes(normalized)
+      ) {
+        where.estado = EstadoSugerencia[normalized];
+      }
+    }
+    if (search && search.trim()) {
+      where.OR = [
+        { nombre: { contains: search, mode: "insensitive" } },
+        { direccion: { contains: search, mode: "insensitive" } },
+        { ciudad: { contains: search, mode: "insensitive" } },
+        { provincia: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      prisma.sugerencia.count({ where }),
+      prisma.sugerencia.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { creadaEn: "desc" },
+      }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        pageSize,
+        pages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
+  } catch (error) {
+    throw new Error("Error obteniendo sugerencias: " + error.message);
+  }
+};
+
+/** Legacy sin paginar (lo dejo por compat) */
+exports.obtenerSugerencias = async () => {
+  try {
+    return await prisma.sugerencia.findMany({
+      orderBy: { creadaEn: "desc" },
+    });
+  } catch (error) {
+    throw new Error("Error obteniendo sugerencias: " + error.message);
+  }
+};
+
+/** Por ID */
+exports.obtenerPorId = async (id) => {
+  try {
+    return await prisma.sugerencia.findUnique({
+      where: { id: Number(id) },
+    });
+  } catch (error) {
+    throw new Error("Error obteniendo sugerencia por ID: " + error.message);
+  }
+};
+
+/** Update completo (PUT) */
+exports.actualizarSugerencia = async (id, data) => {
+  try {
+    const actualizaSlug =
+      data.nombre && typeof data.nombre === "string"
+        ? slugify(data.nombre, { lower: true, strict: true })
+        : undefined;
+
+    return await prisma.sugerencia.update({
+      where: { id: Number(id) },
+      data: {
+        ...data,
+        slug: actualizaSlug || undefined,
+      },
+    });
+  } catch (error) {
+    throw new Error("Error actualizando sugerencia: " + error.message);
+  }
+};
+
+/** PATCH solo estado (acepta minúsculas y mayúsculas) */
+exports.actualizarEstado = async (id, estado) => {
+  try {
+    const normalized = String(estado).toUpperCase();
+    if (
+      !["PENDIENTE", "APROBADA", "RECHAZADA", "DUPLICADA"].includes(normalized)
+    ) {
+      return null;
+    }
+    const sug = await prisma.sugerencia.update({
+      where: { id: Number(id) },
+      data: { estado: EstadoSugerencia[normalized] },
+    });
+    return sug;
+  } catch {
+    return null;
+  }
+};
+
+/** Eliminar */
+exports.eliminar = async (id) => {
+  try {
+    return await prisma.sugerencia.delete({
+      where: { id: Number(id) },
+    });
+  } catch (error) {
+    throw new Error("Error eliminando sugerencia: " + error.message);
+  }
+};
+
+
+===== FILE: backend\src\utils\geocoding.js =====
+
+const axios = require("axios");
+const logger = require("../logger");
+
+const cache = new Map();
+
+function build(parts) {
+  const { direccion, localidad, ciudad, provincia, codigoPostal, pais } = parts;
+  return [
+    direccion,
+    localidad,
+    ciudad,
+    provincia,
+    codigoPostal,
+    pais || "España",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
+ * Devuelve { lat, lon } o null. Hasta 4 intentos con formatos distintos.
+ */
+async function geocodeAddress(params) {
+  const basePais = params.pais || "España";
+  const q1 = build(params);
+  const q2 = build({
+    direccion: params.direccion,
+    localidad: params.localidad || params.ciudad,
+    provincia: params.provincia,
+    codigoPostal: params.codigoPostal,
+    pais: basePais,
+  });
+  const q3 = [
+    params.direccion,
+    `${params.codigoPostal || ""} ${params.ciudad || params.localidad || ""}`,
+    basePais,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const q4 = [params.ciudad || params.localidad, params.provincia, basePais]
+    .filter(Boolean)
+    .join(", ");
+
+  const queries = [q1, q2, q3, q4].filter(Boolean);
+
+  for (const q of queries) {
+    if (cache.has(q)) return cache.get(q);
+
+    try {
+      logger.info(`🌍 Geocoding: "${q}"`);
+      const { data } = await axios.get(
+        "https://nominatim.openstreetmap.org/search",
+        {
+          params: {
+            q,
+            format: "json",
+            addressdetails: 1,
+            limit: 3,
+            countrycodes: "es",
+          },
+          headers: { "User-Agent": "DondeComemosHoy/1.0 (geocoding)" },
+          timeout: 12000,
+        }
+      );
+
+      const first = Array.isArray(data) && data.find(Boolean);
+      const result = first
+        ? { lat: parseFloat(first.lat), lon: parseFloat(first.lon) }
+        : null;
+
+      cache.set(q, result);
+      if (result) {
+        logger.info(`✅ Geocoding OK: ${result.lat}, ${result.lon}`);
+        return result;
+      } else {
+        logger.warn(`⚠️ Geocoding sin resultados para: "${q}"`);
+      }
+    } catch (err) {
+      logger.error(`❌ Error geocoding "${q}": %o`, err?.message || err);
+    }
+  }
+
+  return null;
+}
+
+module.exports = { geocodeAddress };
+
+
+===== FILE: backend\src\index.js =====
+
+// src/index.js
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+
+const setupSwagger = require("./swagger");
+const logger = require("./logger");
+const prisma = require("./prisma");
+
+// Rutas
+const restauranteRoutes = require("./routes/restaurante.routes");
+const sugerenciaRoutes = require("./routes/sugerencia.routes");
+const adminRoutes = require("./routes/admin.routes");
+
+const app = express();
+
+// -- CORS / Seguridad
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+app.use(helmet());
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "1mb" }));
+
+// -- Swagger
+setupSwagger(app);
+
+// -- Healthcheck (útil para pruebas/monitorización)
+app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// -- Rutas API
+app.use("/api/restaurantes", restauranteRoutes);
+app.use("/api/sugerencias", sugerenciaRoutes);
+app.use("/api/admin", adminRoutes);
+
+// -- 404
+app.use((req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada" });
+});
+
+// -- Manejador global de errores
+app.use((err, req, res, _next) => {
+  logger.error("Error no capturado: %o", err);
+  res.status(500).json({ error: "Error interno del servidor" });
+});
+
+// -- Arranque
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+  try {
+    // Conexión a la BD antes de escuchar
+    await prisma.$connect();
+
+    app.listen(PORT, () => {
+      logger.info(`✅ Servidor corriendo en http://localhost:${PORT}`);
+      logger.info(`📚 Swagger docs en: http://localhost:${PORT}/api/docs`);
+    });
+  } catch (e) {
+    logger.error("❌ No se pudo iniciar el servidor: %o", e);
+    process.exit(1);
+  }
+}
+
+// Cerrar Prisma con elegancia al apagar
+process.on("SIGINT", async () => {
+  try {
+    await prisma.$disconnect();
+  } finally {
+    process.exit(0);
+  }
+});
+process.on("SIGTERM", async () => {
+  try {
+    await prisma.$disconnect();
+  } finally {
+    process.exit(0);
+  }
+});
+
+start();
+
+
+===== FILE: backend\src\logger.js =====
+
+const { createLogger, format, transports } = require("winston");
+
+const logger = createLogger({
+  level: "info",
+  format: format.combine(
+    format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+    format.errors({ stack: true }),
+    format.splat(),
+    format.json()
+  ),
+  transports: [
+    new transports.File({ filename: "logs/error.log", level: "error" }),
+    new transports.File({ filename: "logs/combined.log" }),
+  ],
+});
+
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new transports.Console({
+      format: format.combine(format.colorize(), format.simple()),
+    })
+  );
+}
+
+module.exports = logger;
+
+
+===== FILE: backend\src\prisma.js =====
+
+const { PrismaClient } = require("@prisma/client");
+const logger = require("./logger"); // Asegúrate que el path es correcto
+
+const prisma = new PrismaClient();
+
+prisma.$on("error", (e) => {
+  logger.error(`Prisma error: ${e.message}`);
+});
+
+module.exports = prisma;
+
+
+===== FILE: backend\src\swagger.js =====
+
+const swaggerJSDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "API - Dónde Comemos Hoy",
+      version: "1.0.0",
+      description:
+        "Documentación de la API para sugerencias, restaurantes y admins.",
+    },
+    servers: [
+      {
+        url: "/api" ,
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+      schemas: {
+        SugerenciaInput: {
+          type: "object",
+          properties: {
+            nombre: {
+              type: "string",
+              description: "Inserta aquí el nombre del restaurante",
+              example: "Restaurante La Buena Mesa",
+            },
+            direccion: {
+              type: "string",
+              description: "Dirección completa del restaurante",
+              example: "Calle Falsa 123",
+            },
+            descripcion: {
+              type: "string",
+              description: "Descripción breve y atractiva del restaurante",
+              example: "Un lugar acogedor y perfecto para familias con niños.",
+            },
+            localidad: {
+              type: "string",
+              description: "Localidad donde se encuentra el restaurante",
+              example: "Torrevieja",
+            },
+            ciudad: {
+              type: "string",
+              description: "Ciudad del restaurante",
+              example: "Alicante",
+            },
+            provincia: {
+              type: "string",
+              description: "Provincia del restaurante",
+              example: "Alicante",
+            },
+            nombreContacto: {
+              type: "string",
+              description: "Nombre de la persona que sugiere el restaurante",
+              example: "Manuel Saquero",
+            },
+            emailContacto: {
+              type: "string",
+              format: "email",
+              description: "Email de contacto de quien sugiere (opcional)",
+              example: "manuel@example.com",
+            },
+            comentarios: {
+              type: "string",
+              description:
+                "Comentarios adicionales sobre el restaurante (opcional)",
+              example: "Tiene zona infantil y tronas disponibles.",
+            },
+
+            zonaAmplia: {
+              type: "boolean",
+              description:
+                "Indica si el restaurante tiene una zona amplia para familias. True = Sí, False = No.",
+              example: true,
+            },
+            parqueCercano: {
+              type: "boolean",
+              description:
+                "¿Hay un parque cercano para que los niños puedan jugar? True = Sí, False = No.",
+              example: false,
+            },
+            zonaInfantil: {
+              type: "boolean",
+              description:
+                "¿El restaurante dispone de zona infantil? True = Sí, False = No.",
+              example: true,
+            },
+            tronaDisponible: {
+              type: "boolean",
+              description:
+                "¿Hay tronas para bebés disponibles? True = Sí, False = No.",
+              example: true,
+            },
+            cambiadorDisponible: {
+              type: "boolean",
+              description:
+                "¿Dispone de cambiador para bebés? True = Sí, False = No.",
+              example: false,
+            },
+            sitioParaCarrito: {
+              type: "boolean",
+              description:
+                "¿Hay espacio para dejar el carrito de bebé? True = Sí, False = No.",
+              example: true,
+            },
+            terrazaSegura: {
+              type: "boolean",
+              description:
+                "¿La terraza es segura para los niños? True = Sí, False = No.",
+              example: false,
+            },
+            actividadesParaNinos: {
+              type: "boolean",
+              description:
+                "¿Se ofrecen actividades para niños? True = Sí, False = No.",
+              example: true,
+            },
+            menuInfantil: {
+              type: "boolean",
+              description:
+                "¿El restaurante ofrece menú infantil? True = Sí, False = No.",
+              example: true,
+            },
+            aptoVegetariano: {
+              type: "boolean",
+              description:
+                "¿Tiene opciones vegetarianas? True = Sí, False = No.",
+              example: true,
+            },
+            aptoVegano: {
+              type: "boolean",
+              description: "¿Tiene opciones veganas? True = Sí, False = No.",
+              example: false,
+            },
+            sinPantallas: {
+              type: "boolean",
+              description:
+                "¿El restaurante no usa pantallas para distraer? True = Sí, False = No.",
+              example: true,
+            },
+            ambienteFamiliar: {
+              type: "boolean",
+              description:
+                "¿El ambiente es familiar y tranquilo? True = Sí, False = No.",
+              example: true,
+            },
+            accesibleConCarrito: {
+              type: "boolean",
+              description:
+                "¿Es accesible con carrito de bebé? True = Sí, False = No.",
+              example: true,
+            },
+          },
+          required: [
+            "nombre",
+            "direccion",
+            "descripcion",
+            "localidad",
+            "ciudad",
+            "provincia",
+            "nombreContacto",
+          ],
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
+  },
+  apis: [__dirname + "/routes/*.js"],
+};
+
+const swaggerSpec = swaggerJSDoc(options);
+
+function setupSwagger(app) {
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
+module.exports = setupSwagger;
+
+
+===== FILE: backend\package.json =====
+
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "description": "Backend API REST para recomendaciones familiares de restaurantes, con autenticación, documentación y filtros avanzados.",
+  "author": "Manu Saquero",
+  "license": "MIT",
+  "keywords": [
+    "api",
+    "rest",
+    "node",
+    "prisma",
+    "jwt",
+    "swagger",
+    "familias",
+    "restaurantes"
+  ],
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.13.0",
+    "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "prisma": "^6.13.0",
+    "slugify": "^1.6.6",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}
+
+
+===== FILE: backend\README.md =====
+
+# 🧺 Dónde Comemos Hoy – Backend API para recomendaciones familiares 🍽️👶🌳
+
+¡Hola! Bienvenido al backend de **Dónde Comemos Hoy**, una API pensada para ayudar a familias con hijos a encontrar restaurantes tranquilos, accesibles y adaptados para niños pequeños.
+
+Este repositorio contiene una **API REST** construida con tecnologías modernas y pensada para integrarse fácilmente en aplicaciones web o móviles.
+
+---
+
+## 🚀 ¿Qué hace esta API?
+
+Esta API permite:
+
+- 📍 Buscar restaurantes según filtros familiares (zona amplia, parque cercano, tronas, cambiador, sin pantallas, menú infantil, etc.).
+- 📝 Recibir sugerencias públicas de nuevos restaurantes.
+- 🛡️ Gestionar sug3erencias desde un panel de administración (en desarrollo).
+- 🔐 Proteger rutas con autenticación JWT.
+- 📚 Documentar automáticamente la API con Swagger.
+
+Además, su arquitectura es **reutilizable** como base para otros proyectos similares:
+
+- Plataformas de catálogos geolocalizados
+- Sistemas de sugerencias
+- Dashboards administrativos, etc.
+
+---
+
+## 🛠️ Tecnologías principales
+
+- **Node.js** + **Express**
+- **Prisma ORM** + **PostgreSQL**
+- **JWT** para autenticación
+- **Swagger ** para documentación
+- **Helmet** y **CORS** para seguridad
+- **bcrypt** para cifrado de contraseñas
+- **Winston** para logging profesional
+
+---
+
+## 📦 Instalación y puesta en marcha
+
+### 1. Clonar el repositorio
+
+git clone <URL-del-repo>
+cd backend
+
+### 2. Instalar dependencias
+
+npm install
+
+### 3. Configurar variables de entorno
+
+Copia el archivo .env.example a .env y rellena con tus datos:
+
+DATABASE_URL=postgresql://usuario:password@localhost:5432/tu_base_de_datos
+JWT_SECRET=tu_clave_secreta_para_jwt
+PORT=3000
+
+### 4. Aplicar migraciones de Prisma
+
+npx prisma migrate dev --name init
+Esto generará las tablas necesarias en la base de datos.
+
+### 5. Levantar el servidor en modo desarrollo
+
+npm run dev
+Accede a la API en:
+http://localhost:3000
+
+### 📄Documentación Swagger
+
+Puedes explorar y probar todos los endpoints desde:
+🔗 http://localhost:3000/api/docs
+
+### 🔐 Autenticación para rutas protegidas
+
+Realiza un login con:
+pgsql
+POST /api/admin/login
+Content-Type: application/json
+
+{
+"email": "admin@example.com",
+"password": "tu_contraseña"
+}
+Copia el token JWT recibido.
+
+En Postman (o similar), ve a la pestaña “Authorization”, elige “Bearer Token” e introduce el token.
+
+Ya puedes acceder a rutas protegidas (POST, PUT, DELETE, etc.).
+
+### 📬 Ejemplos de endpoints
+
+Obtener todos los restaurantes (público)
+GET /api/restaurantes
+
+Crear un restaurante (admin)
+
+POST /api/restaurantes
+Headers:
+Authorization: Bearer <tu-token>
+Content-Type: application/json
+Body ejemplo:
+
+{
+"nombre": "Restaurante Ejemplo",
+"direccion": "Calle Falsa 123",
+"descripcion": "Un lugar genial",
+"zonaAmplia": true,
+"parqueCercano": false,
+"tronaDisponible": true,
+"activo": true,
+"verificado": false
+}
+Actualizar restaurante (admin)
+
+PUT /api/restaurantes/{id}
+
+Eliminar restaurante (admin)
+
+DELETE /api/restaurantes/{id}
+
+### 💡 ¿Por qué usar este backend?
+
+Este backend no es solo funcional, también demuestra buenas prácticas de desarrollo profesional:
+
+Arquitectura limpia y modular.
+
+Seguridad desde el diseño.
+
+Preparado para escalar y adaptarse a nuevas apps.
+
+Documentado y fácil de mantener.
+
+### 🔁 Puedes reutilizarlo como base para:
+
+Apps para gestión de locales/sugerencias.
+
+Plataformas de recomendaciones moderadas.
+
+Dashboards administrativos.
+
+Cualquier sistema con Node.js + JWT + Prisma.
+
+⭐ ¿Te ha sido útil?
+
+Si te ha parecido útil este proyecto, dale una estrella ⭐ al repo.
+También puedes clonarlo, adaptarlo a tus ideas y mencionarme si te sirvió de ayuda.
+¡Gracias por visitar Dónde Comemos Hoy! 🙌
+
+---
+
+📘 Licencia
+
+MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+
+---
+
+📬 Contacto
+
+💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+
+🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
+
+📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!
+
+---
+
+
+===== FILE: dashboard\src\components\DashboardLayout.tsx =====
+
+import { Outlet } from "react-router-dom";
+import Header from "./Header";
+import Sidebar from "./Sidebar";
+
+export default function DashboardLayout() {
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <Header />
+      <div className="flex">
+        <Sidebar />
+        <main className="flex-1 p-4">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+
+===== FILE: dashboard\src\components\FiltersBar.tsx =====
+
+import { useMemo, useState } from "react";
+
+export type SortKey =
+  | "nombre_asc"
+  | "nombre_desc"
+  | "ciudad_asc"
+  | "ciudad_desc";
+export type MatchMode = "all" | "any";
+
+export type FamilyFlags = {
+  zonaAmplia: boolean;
+  parqueCercano: boolean;
+  zonaInfantil: boolean;
+  tronaDisponible: boolean;
+  cambiadorDisponible: boolean;
+  sitioParaCarrito: boolean;
+  terrazaSegura: boolean;
+  actividadesParaNinos: boolean; // sin ñ para TS/URL
+  menuInfantil: boolean;
+  aptoVegetariano: boolean;
+  aptoVegano: boolean;
+  sinPantallas: boolean;
+  ambienteFamiliar: boolean;
+  accesibleConCarrito: boolean;
+};
+
+export type Filters = {
+  q: string;
+  ciudad: string;
+  onlyWithCoords: boolean;
+  matchMode: MatchMode;
+  flags: FamilyFlags;
+  sortBy: SortKey;
+};
+
+type Props = {
+  filters: Filters;
+  setFilters: (updater: (prev: Filters) => Filters) => void;
+  ciudades: string[];
+  onRefetch?: () => void;
+  showMap: boolean;
+  setShowMap: (v: boolean) => void;
+};
+
+type FlagKey = keyof FamilyFlags;
+
+function FlagCheck({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  const id = `f-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  return (
+    <label htmlFor={id} className="inline-flex items-center gap-2 text-sm">
+      <input
+        id={id}
+        type="checkbox"
+        checked={value}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4"
+      />
+      {label}
+    </label>
+  );
+}
+
+export default function FiltersBar({
+  filters,
+  setFilters,
+  ciudades,
+  onRefetch,
+  showMap,
+  setShowMap,
+}: Props) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const selectedFlagsCount = useMemo(
+    () => Object.values(filters.flags).filter(Boolean).length,
+    [filters.flags]
+  );
+
+  return (
+    <div className="rounded-2xl border bg-white p-3 shadow-sm space-y-3">
+      {/* Fila principal */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="md:col-span-2">
+          <label className="text-xs text-gray-600">Buscar</label>
+          <input
+            value={filters.q}
+            onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+            placeholder="Nombre, dirección, ciudad…"
+            className="w-full mt-1 rounded-lg border px-3 py-2 outline-none focus:ring"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-600">Ciudad</label>
+          <select
+            value={filters.ciudad}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, ciudad: e.target.value }))
+            }
+            className="w-full mt-1 rounded-lg border px-3 py-2 outline-none focus:ring bg-white"
+          >
+            <option value="">Todas</option>
+            {ciudades.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-600">Orden</label>
+          <select
+            value={filters.sortBy}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, sortBy: e.target.value as SortKey }))
+            }
+            className="w-full mt-1 rounded-lg border px-3 py-2 outline-none focus:ring bg-white"
+          >
+            <option value="nombre_asc">Nombre ↑</option>
+            <option value="nombre_desc">Nombre ↓</option>
+            <option value="ciudad_asc">Ciudad ↑</option>
+            <option value="ciudad_desc">Ciudad ↓</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Controles secundarios */}
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={filters.onlyWithCoords}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, onlyWithCoords: e.target.checked }))
+            }
+            className="h-4 w-4"
+          />
+          Solo con coordenadas
+        </label>
+
+        <button
+          className="px-3 py-1 rounded-lg border bg-gray-50 hover:bg-gray-100 text-sm"
+          onClick={() => setShowAdvanced((s) => !s)}
+        >
+          Filtros familiares{" "}
+          {selectedFlagsCount > 0 ? `(${selectedFlagsCount})` : ""}
+        </button>
+
+        <div className="flex-1" />
+
+        <button
+          className="px-3 py-1 rounded-lg border text-sm"
+          onClick={() =>
+            setFilters((prev) => ({
+              ...prev,
+              q: "",
+              ciudad: "",
+              onlyWithCoords: false,
+              flags: Object.fromEntries(
+                Object.keys(prev.flags).map((k) => [k, false])
+              ) as FamilyFlags,
+              matchMode: "all",
+              sortBy: "nombre_asc",
+            }))
+          }
+        >
+          Limpiar filtros
+        </button>
+
+        <button
+          className="px-3 py-1 rounded-lg bg-black text-white text-sm"
+          onClick={onRefetch}
+        >
+          Recargar
+        </button>
+
+        <label className="inline-flex items-center gap-2 text-sm ml-2">
+          <input
+            type="checkbox"
+            checked={showMap}
+            onChange={(e) => setShowMap(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Mostrar mapa
+        </label>
+      </div>
+
+      {/* Filtros avanzados */}
+      {showAdvanced && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 mt-2">
+          {(
+            [
+              "zonaAmplia",
+              "parqueCercano",
+              "zonaInfantil",
+              "tronaDisponible",
+              "cambiadorDisponible",
+              "sitioParaCarrito",
+              "terrazaSegura",
+              "actividadesParaNinos",
+              "menuInfantil",
+              "aptoVegetariano",
+              "aptoVegano",
+              "sinPantallas",
+              "ambienteFamiliar",
+              "accesibleConCarrito",
+            ] as FlagKey[]
+          ).map((k) => (
+            <FlagCheck
+              key={k}
+              label={
+                {
+                  zonaAmplia: "Zona amplia",
+                  parqueCercano: "Parque cercano",
+                  zonaInfantil: "Zona infantil",
+                  tronaDisponible: "Trona disponible",
+                  cambiadorDisponible: "Cambiador disponible",
+                  sitioParaCarrito: "Sitio para carrito",
+                  terrazaSegura: "Terraza segura",
+                  actividadesParaNinos: "Actividades para niños",
+                  menuInfantil: "Menú infantil",
+                  aptoVegetariano: "Apto vegetariano",
+                  aptoVegano: "Apto vegano",
+                  sinPantallas: "Sin pantallas",
+                  ambienteFamiliar: "Ambiente familiar",
+                  accesibleConCarrito: "Accesible con carrito",
+                }[k]
+              }
+              value={filters.flags[k]}
+              onChange={(v) =>
+                setFilters((f) => ({
+                  ...f,
+                  flags: { ...f.flags, [k]: v },
+                }))
+              }
+            />
+          ))}
+
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex items-center gap-3 pt-1">
+            <span className="text-xs text-gray-600">Modo de coincidencia</span>
+            <label className="inline-flex items-center gap-2 text-xs">
+              <input
+                type="radio"
+                name="matchMode"
+                checked={filters.matchMode === "all"}
+                onChange={() => setFilters((f) => ({ ...f, matchMode: "all" }))}
+              />
+              Deben cumplirse todos
+            </label>
+            <label className="inline-flex items-center gap-2 text-xs">
+              <input
+                type="radio"
+                name="matchMode"
+                checked={filters.matchMode === "any"}
+                onChange={() => setFilters((f) => ({ ...f, matchMode: "any" }))}
+              />
+              Con que cumplan alguno
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+===== FILE: dashboard\src\components\Header.tsx =====
+
+export default function Header() {
+  return (
+    <header className="h-14 flex items-center justify-between px-4 border-b bg-white">
+      <h1 className="text-lg font-semibold">Dónde Comemos Hoy — Dashboard</h1>
+      {/* placeholder para user/menu. En Fase 2: botón logout, etc. */}
+      <div className="text-sm text-gray-500">v1.0</div>
+    </header>
+  );
+}
+
+
+===== FILE: dashboard\src\components\map.tsx =====
+
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useMemo } from "react";
+import L from "leaflet";
+import "leaflet.markercluster";
+import "leaflet.heat";
+
+// Minimal typing for the heat layer (no @types)
+type HeatTuple = [number, number, number?];
+type HeatOptions = {
+  minOpacity?: number;
+  maxZoom?: number;
+  radius?: number;
+  blur?: number;
+  gradient?: Record<number, string>;
+};
+type LeafletHeat = typeof L & {
+  heatLayer: (latlngs: HeatTuple[], options?: HeatOptions) => L.Layer;
+};
+const LH = L as LeafletHeat;
+
+// Explicit icon to avoid the “broken image” marker
+import iconUrl from "leaflet/dist/images/marker-icon.png";
+import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import shadowUrl from "leaflet/dist/images/marker-shadow.png";
+
+const defaultIcon = L.icon({
+  iconUrl,
+  iconRetinaUrl,
+  shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+export type MarkerItem = {
+  id: number | string;
+  nombre: string;
+  latitud: number;
+  longitud: number;
+  direccion?: string | null;
+  ciudad?: string | null;
+};
+
+function escapeHtml(str: string) {
+  return str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+// Compute bounds for all items
+function useItemsBounds(items: MarkerItem[]) {
+  return useMemo(() => {
+    const pts = items.map((i) => [i.latitud, i.longitud]) as [number, number][];
+    return pts.length ? L.latLngBounds(pts) : null;
+  }, [items]);
+}
+
+// Auto fit on mount / items change
+function AutoFit({ items }: { items: MarkerItem[] }) {
+  const map = useMap();
+  const bounds = useItemsBounds(items);
+
+  useEffect(() => {
+    if (!bounds) return;
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, bounds]);
+
+  return null;
+}
+
+// Leaflet control: “Center map”
+class FitBoundsControl extends L.Control {
+  private readonly items: MarkerItem[];
+
+  constructor(items: MarkerItem[]) {
+    super({ position: "topright" });
+    this.items = items;
+  }
+
+  onAdd(map: L.Map): HTMLElement {
+    const container = L.DomUtil.create("div", "leaflet-bar");
+    const btn = L.DomUtil.create("a", "", container);
+
+    btn.href = "#";
+    btn.title = "Centrar mapa";
+    btn.innerHTML = "⤢";
+    Object.assign(btn.style, {
+      width: "30px",
+      height: "30px",
+      lineHeight: "30px",
+      textAlign: "center",
+      fontSize: "16px",
+      cursor: "pointer",
+    });
+
+    L.DomEvent.on(btn, "click", (e) => {
+      L.DomEvent.preventDefault(e);
+      L.DomEvent.stopPropagation(e);
+      const pts = this.items.map((i) => [i.latitud, i.longitud]) as [
+        number,
+        number
+      ][];
+      if (pts.length) {
+        const bounds = L.latLngBounds(pts);
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    });
+
+    return container as HTMLElement;
+  }
+}
+
+function FitButtonControl({ items }: { items: MarkerItem[] }) {
+  const map = useMap();
+  useEffect(() => {
+    const ctl = new FitBoundsControl(items);
+    ctl.addTo(map);
+    return () => {
+      ctl.remove();
+    };
+  }, [map, items]);
+  return null;
+}
+
+// Leaflet control: Heatmap ON/OFF
+class HeatToggleControl extends L.Control {
+  private readonly items: MarkerItem[];
+  private layer?: L.Layer;
+  private active = false;
+
+  constructor(items: MarkerItem[]) {
+    super({ position: "topright" });
+    this.items = items;
+  }
+
+  onAdd(map: L.Map): HTMLElement {
+    const container = L.DomUtil.create("div", "leaflet-bar");
+    const btn = L.DomUtil.create("a", "", container);
+
+    btn.href = "#";
+    btn.title = "Heatmap ON/OFF";
+    btn.innerHTML = "🔥";
+    Object.assign(btn.style, {
+      width: "30px",
+      height: "30px",
+      lineHeight: "30px",
+      textAlign: "center",
+      fontSize: "16px",
+      cursor: "pointer",
+    });
+
+    const buildLayer = () => {
+      const pts: HeatTuple[] = this.items.map((i) => [
+        i.latitud,
+        i.longitud,
+        0.6,
+      ]);
+      return LH.heatLayer(pts, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17,
+        minOpacity: 0.2,
+        gradient: {
+          0.2: "#3b82f6",
+          0.4: "#22c55e",
+          0.6: "#f59e0b",
+          0.8: "#ef4444",
+        },
+      });
+    };
+
+    const toggle = () => {
+      if (!this.active) {
+        this.layer = buildLayer();
+        if (this.layer) {
+          this.layer.addTo(map);
+          this.active = true;
+          btn.style.background = "#222";
+          btn.style.color = "#fff";
+        }
+      } else {
+        if (this.layer) {
+          map.removeLayer(this.layer);
+          this.layer = undefined;
+        }
+        this.active = false;
+        btn.style.background = "";
+        btn.style.color = "";
+      }
+    };
+
+    L.DomEvent.on(btn, "click", (e) => {
+      L.DomEvent.preventDefault(e);
+      L.DomEvent.stopPropagation(e);
+      toggle();
+    });
+
+    return container as HTMLElement;
+  }
+}
+
+function HeatButtonControl({ items }: { items: MarkerItem[] }) {
+  const map = useMap();
+  useEffect(() => {
+    const ctl = new HeatToggleControl(items);
+    ctl.addTo(map);
+    return () => {
+      ctl.remove();
+    };
+  }, [map, items]);
+  return null;
+}
+
+// Cluster layer with color by density
+function MarkerClusterLayer({ items }: { items: MarkerItem[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const clusterGroup = L.markerClusterGroup({
+      chunkedLoading: true,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        let bg = "#3b82f6"; // blue
+        let size = 34;
+        if (count >= 10 && count < 50) {
+          bg = "#22c55e"; // green
+          size = 40;
+        } else if (count >= 50 && count < 200) {
+          bg = "#f59e0b"; // amber
+          size = 46;
+        } else if (count >= 200) {
+          bg = "#ef4444"; // red
+          size = 52;
+        }
+        const html = `
+          <div style="
+            background:${bg};
+            color:#fff;
+            width:${size}px;height:${size}px;
+            border-radius:50%;
+            display:flex;align-items:center;justify-content:center;
+            font-weight:600;
+            box-shadow:0 0 0 2px #fff;
+            line-height:1;
+          ">
+            ${count}
+          </div>`;
+        return L.divIcon({
+          html,
+          className: "custom-cluster",
+          iconSize: [size, size],
+        });
+      },
+    });
+
+    items.forEach((i) => {
+      const m = L.marker([i.latitud, i.longitud], { icon: defaultIcon });
+      const content = `
+        <div style="font-size:12px;line-height:1.2">
+          <div style="font-weight:600">${escapeHtml(i.nombre)}</div>
+          <div style="color:#4b5563">${escapeHtml(i.direccion ?? "")}${
+        i.ciudad ? " — " + escapeHtml(i.ciudad) : ""
+      }</div>
+        </div>`;
+      m.bindPopup(content);
+      clusterGroup.addLayer(m);
+    });
+
+    map.addLayer(clusterGroup);
+
+    return () => {
+      map.removeLayer(clusterGroup);
+      clusterGroup.clearLayers();
+    };
+  }, [map, items]);
+
+  return null;
+}
+
+export default function Map({ items }: { items: MarkerItem[] }) {
+  const hasPoints = items && items.length > 0;
+  const fallbackCenter: [number, number] = [38.3452, -0.481]; // Alicante
+  const first = hasPoints
+    ? ([items[0].latitud, items[0].longitud] as [number, number])
+    : fallbackCenter;
+
+  return (
+    <div className="w-full h-96 rounded-2xl overflow-hidden border bg-gray-50">
+      <MapContainer
+        center={first}
+        zoom={12}
+        style={{ width: "100%", height: "100%" }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {hasPoints && <AutoFit items={items} />}
+        {hasPoints && <MarkerClusterLayer items={items} />}
+        {hasPoints && <FitButtonControl items={items} />}
+        {hasPoints && <HeatButtonControl items={items} />}
+      </MapContainer>
+    </div>
+  );
+}
+
+
+===== FILE: dashboard\src\components\PrivateRoute.tsx =====
+
+import { Navigate, Outlet } from "react-router-dom";
+
+export default function PrivateRoute() {
+  const token = localStorage.getItem("token");
+  return token ? <Outlet /> : <Navigate to="/login" replace />;
+}
+
+
+===== FILE: dashboard\src\components\Sidebar.tsx =====
+
+import { NavLink } from "react-router-dom";
+import clsx from "clsx";
+
+const linkCls = ({ isActive }: { isActive: boolean }) =>
+  clsx(
+    "block px-3 py-2 rounded-lg text-sm",
+    isActive ? "bg-gray-200 font-medium" : "text-gray-700 hover:bg-gray-100"
+  );
+
+export default function Sidebar() {
+  return (
+    <aside className="w-64 border-r bg-white p-3">
+      <nav className="space-y-1">
+        <NavLink to="/" className={linkCls} end>
+          Inicio
+        </NavLink>
+        <NavLink to="/restaurantes" className={linkCls}>
+          Restaurantes
+        </NavLink>
+        <NavLink to="/sugerencias" className={linkCls}>
+          Sugerencias
+        </NavLink>
+      </nav>
+    </aside>
+  );
+}
+
+
+===== FILE: dashboard\src\pages\HomePage.tsx =====
+
+import { Link } from "react-router-dom";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import {
+  getRestaurantes,
+  type RestaurantesResponse,
+} from "../services/restauranteService";
+import {
+  getSugerencias,
+  type SugerenciasResponse,
+} from "../services/sugerenciaService";
+
+type Flag = {
+  key: string;
+  label: string;
+  param: string; // nombre exacto del flag en backend
+};
+
+const FLAGS: Flag[] = [
+  { key: "trona", label: "Trona", param: "tronaDisponible" },
+  { key: "zonaInfantil", label: "Zona infantil", param: "zonaInfantil" },
+  { key: "menuInfantil", label: "Menú infantil", param: "menuInfantil" },
+  { key: "cambiador", label: "Cambiador", param: "cambiadorDisponible" },
+  { key: "carrito", label: "Carrito OK", param: "sitioParaCarrito" },
+  { key: "terraza", label: "Terraza segura", param: "terrazaSegura" },
+  { key: "parque", label: "Parque cercano", param: "parqueCercano" },
+  { key: "zonaAmplia", label: "Zona amplia", param: "zonaAmplia" },
+  { key: "vegano", label: "Vegano", param: "aptoVegano" },
+  { key: "vegetariano", label: "Vegetariano", param: "aptoVegetariano" },
+  { key: "sinPantallas", label: "Sin pantallas", param: "sinPantallas" },
+  {
+    key: "ambienteFamiliar",
+    label: "Ambiente familiar",
+    param: "ambienteFamiliar",
+  },
+  {
+    key: "accesible",
+    label: "Accesible carrito",
+    param: "accesibleConCarrito",
+  },
+  {
+    key: "actividades",
+    label: "Actividades niños",
+    param: "actividadesParaNinos",
+  },
+];
+
+function BigCard({
+  title,
+  value,
+  subtitle,
+  loading,
+  error,
+  to,
+}: {
+  title: string;
+  value: string;
+  subtitle?: string;
+  loading?: boolean;
+  error?: string;
+  to?: string; // si se pasa, la tarjeta es clicable
+}) {
+  const content = (
+    <div className="rounded-2xl bg-white p-4 shadow-sm border hover:shadow-md transition">
+      <div className="text-sm text-gray-500">{title}</div>
+      {loading ? (
+        <div className="mt-2 h-8 w-24 animate-pulse rounded bg-gray-200" />
+      ) : error ? (
+        <div className="mt-2 text-sm text-red-600">Error: {error}</div>
+      ) : (
+        <>
+          <div className="mt-1 text-3xl font-bold">{value}</div>
+          {subtitle && (
+            <div className="text-xs text-gray-400 mt-1">{subtitle}</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  return to ? <Link to={to}>{content}</Link> : content;
+}
+
+function SmallCard({
+  title,
+  count,
+  percent,
+  loading,
+  error,
+}: {
+  title: string;
+  count: number;
+  percent: number;
+  loading?: boolean;
+  error?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white p-3 shadow-sm border">
+      <div className="text-xs text-gray-500">{title}</div>
+      {loading ? (
+        <div className="mt-1 h-6 w-16 animate-pulse rounded bg-gray-200" />
+      ) : error ? (
+        <div className="mt-1 text-xs text-red-600">Error</div>
+      ) : (
+        <div className="mt-0.5 text-lg font-semibold">
+          {percent}% <span className="text-gray-400 text-xs">({count})</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function HomePage() {
+  // Total global de restaurantes
+  const totalQ = useQuery<RestaurantesResponse>({
+    queryKey: ["home-total"],
+    queryFn: () => getRestaurantes({ page: 1, pageSize: 1 }),
+    staleTime: 30_000,
+  });
+  const total = totalQ.data?.meta?.total ?? 0;
+
+  // Con coordenadas
+  const coordsQ = useQuery<RestaurantesResponse>({
+    queryKey: ["home-coords"],
+    queryFn: () =>
+      getRestaurantes({ page: 1, pageSize: 1, onlyWithCoords: true }),
+    staleTime: 30_000,
+  });
+  const withCoords = coordsQ.data?.meta?.total ?? 0;
+  const withoutCoords = Math.max(total - withCoords, 0);
+
+  // Peticiones pendientes (sugerencias)
+  const pendingQ = useQuery<SugerenciasResponse>({
+    queryKey: ["home-pending-suggestions"],
+    queryFn: () =>
+      getSugerencias({ page: 1, pageSize: 1, estado: "PENDIENTE" }),
+    staleTime: 30_000,
+  });
+  const pendientes = pendingQ.data?.meta?.total ?? 0;
+
+  const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
+
+  // Queries por bandera (una por tarjeta pequeña)
+  const flagQueries = useQueries({
+    queries: FLAGS.map((f) => ({
+      queryKey: ["home-flag", f.param],
+      queryFn: () =>
+        getRestaurantes({ page: 1, pageSize: 1, [f.param]: true } as any),
+      staleTime: 30_000,
+    })),
+  });
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h2 className="text-xl font-semibold mb-3">Resumen</h2>
+
+        {/* Fila 1: total + peticiones pendientes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <BigCard
+            title="Total de restaurantes"
+            value={String(total)}
+            subtitle="En base de datos"
+            loading={totalQ.isLoading}
+            error={totalQ.isError ? (totalQ.error as Error).message : undefined}
+          />
+
+          <BigCard
+            title="Peticiones pendientes"
+            value={String(pendientes)}
+            subtitle="Sugerencias por revisar"
+            loading={pendingQ.isLoading}
+            error={
+              pendingQ.isError ? (pendingQ.error as Error).message : undefined
+            }
+            to="/sugerencias"
+          />
+        </div>
+
+        {/* Fila 2: coordenadas si/no */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <BigCard
+            title="Con coordenadas"
+            value={`${withCoords} (${pct(withCoords)}%)`}
+            subtitle="Listos para mapa"
+            loading={coordsQ.isLoading || totalQ.isLoading}
+            error={
+              coordsQ.isError
+                ? (coordsQ.error as Error).message
+                : totalQ.isError
+                ? (totalQ.error as Error).message
+                : undefined
+            }
+          />
+          <BigCard
+            title="Sin coordenadas"
+            value={`${withoutCoords} (${pct(withoutCoords)}%)`}
+            subtitle="Pendientes de geocodificar"
+            loading={coordsQ.isLoading || totalQ.isLoading}
+            error={
+              coordsQ.isError
+                ? (coordsQ.error as Error).message
+                : totalQ.isError
+                ? (totalQ.error as Error).message
+                : undefined
+            }
+          />
+        </div>
+
+        {/* Resto: tarjetas pequeñas */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
+          {FLAGS.map((f, i) => {
+            const q = flagQueries[i];
+            const count =
+              (q.data as RestaurantesResponse | undefined)?.meta?.total ?? 0;
+            const loading = q.isLoading || totalQ.isLoading;
+            const error = q.isError ? (q.error as Error).message : undefined;
+            return (
+              <SmallCard
+                key={f.key}
+                title={f.label}
+                count={count}
+                percent={pct(count)}
+                loading={loading}
+                error={error}
+              />
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+===== FILE: dashboard\src\pages\LoginPage.tsx =====
+
+// src/pages/LoginPage.tsx
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { loginAdmin } from "../services/adminService";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErr(null);
+    setLoading(true);
+    try {
+      const { token } = await loginAdmin({ email, password });
+      localStorage.setItem("token", token);
+      navigate("/", { replace: true });
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || "Credenciales inválidas");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="h-[calc(100vh-56px)] grid place-items-center">
+      <form
+        onSubmit={onSubmit}
+        className="bg-white border rounded-2xl p-6 w-full max-w-sm space-y-3"
+      >
+        <h2 className="text-xl font-semibold">Acceder</h2>
+        {err && <div className="text-sm text-red-600">{err}</div>}
+
+        <div className="space-y-1">
+          <label className="text-sm">Email</label>
+          <input
+            className="w-full border rounded-lg px-3 py-2"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm">Password</label>
+          <input
+            className="w-full border rounded-lg px-3 py-2"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </div>
+
+        <button
+          disabled={loading}
+          className="w-full rounded-xl border px-3 py-2 font-medium hover:bg-gray-50 disabled:opacity-60"
+        >
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+
+===== FILE: dashboard\src\pages\RestauranteCreatePage.tsx =====
+
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  createRestaurante,
+  type Restaurante,
+} from "../services/restauranteService";
+
+const FLAG_FIELDS = [
+  "zonaAmplia",
+  "parqueCercano",
+  "zonaInfantil",
+  "tronaDisponible",
+  "cambiadorDisponible",
+  "sitioParaCarrito",
+  "terrazaSegura",
+  "actividadesParaNinos",
+  "menuInfantil",
+  "aptoVegetariano",
+  "aptoVegano",
+  "sinPantallas",
+  "ambienteFamiliar",
+  "accesibleConCarrito",
+] as const;
+
+type FlagsState = Record<(typeof FLAG_FIELDS)[number], boolean>;
+
+export default function RestauranteCreatePage() {
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    nombre: "",
+    direccion: "",
+    localidad: "",
+    ciudad: "",
+    provincia: "",
+    codigoPostal: "",
+    pais: "España",
+    telefonoRestaurante: "",
+    emailRestaurante: "",
+    sitioWeb: "",
+    horario: "",
+    descripcion: "",
+    latitud: "",
+    longitud: "",
+    imagenesText: "",
+  });
+
+  const [flags, setFlags] = useState<FlagsState>(
+    () => Object.fromEntries(FLAG_FIELDS.map((k) => [k, false])) as FlagsState
+  );
+
+  const imagenesArray = useMemo(
+    () =>
+      form.imagenesText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [form.imagenesText]
+  );
+
+  const onChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  };
+
+  const onFlagChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFlags((s) => ({ ...s, [name]: checked }));
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: Partial<Restaurante> & Record<string, any> = {
+        nombre: form.nombre.trim(),
+        direccion: form.direccion.trim(),
+        localidad: form.localidad.trim(),
+        ciudad: form.ciudad.trim(),
+        provincia: form.provincia.trim(),
+        codigoPostal: form.codigoPostal.trim() || undefined,
+        pais: form.pais.trim() || undefined,
+        telefonoRestaurante: form.telefonoRestaurante.trim() || undefined,
+        emailRestaurante: form.emailRestaurante.trim() || undefined,
+        sitioWeb: form.sitioWeb.trim() || undefined,
+        horario: form.horario.trim() || undefined,
+        descripcion: form.descripcion.trim(),
+        imagenes: imagenesArray,
+        ...flags,
+      };
+
+      if (form.latitud !== "") {
+        const n = Number(form.latitud);
+        if (!Number.isNaN(n)) payload.latitud = n;
+      }
+      if (form.longitud !== "") {
+        const n = Number(form.longitud);
+        if (!Number.isNaN(n)) payload.longitud = n;
+      }
+
+      Object.keys(payload).forEach(
+        (k) => payload[k] === undefined && delete payload[k]
+      );
+
+      await createRestaurante(payload);
+      navigate("/restaurantes");
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const msg = e?.response?.data?.error;
+      if (status === 409) setError("Ya existe un restaurante con ese nombre.");
+      else setError(msg ?? "Error al crear restaurante");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Nuevo restaurante</h1>
+        <button
+          onClick={() => navigate(-1)}
+          className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+        >
+          Volver
+        </button>
+      </div>
+
+      {error && <div className="text-sm text-red-600">{error}</div>}
+
+      <form
+        onSubmit={onSubmit}
+        className="rounded-2xl border bg-white p-4 shadow-sm space-y-6"
+      >
+        {/* Básicos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nombre *"
+            name="nombre"
+            value={form.nombre}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Dirección *"
+            name="direccion"
+            value={form.direccion}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Localidad *"
+            name="localidad"
+            value={form.localidad}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Ciudad *"
+            name="ciudad"
+            value={form.ciudad}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Provincia *"
+            name="provincia"
+            value={form.provincia}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Código postal"
+            name="codigoPostal"
+            value={form.codigoPostal}
+            onChange={onChange}
+          />
+          <Input
+            label="País"
+            name="pais"
+            value={form.pais}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Contacto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Teléfono"
+            name="telefonoRestaurante"
+            value={form.telefonoRestaurante}
+            onChange={onChange}
+          />
+          <Input
+            label="Email"
+            name="emailRestaurante"
+            value={form.emailRestaurante}
+            onChange={onChange}
+          />
+          <Input
+            label="Sitio web"
+            name="sitioWeb"
+            value={form.sitioWeb}
+            onChange={onChange}
+          />
+          <Input
+            label="Horario"
+            name="horario"
+            value={form.horario}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Descripción */}
+        <label className="text-sm block">
+          <span className="block text-gray-600 mb-1">Descripción *</span>
+          <textarea
+            className="w-full rounded-lg border px-3 py-2 min-h-[100px]"
+            name="descripcion"
+            value={form.descripcion}
+            onChange={onChange}
+            required
+          />
+        </label>
+
+        {/* Imágenes */}
+        <label className="text-sm block">
+          <span className="block text-gray-600 mb-1">
+            Imágenes (una URL por línea)
+          </span>
+          <textarea
+            className="w-full rounded-lg border px-3 py-2 min-h-[80px]"
+            name="imagenesText"
+            value={form.imagenesText}
+            onChange={onChange}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            {imagenesArray.length} imagen(es)
+          </div>
+        </label>
+
+        {/* Coordenadas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Latitud (opcional)"
+            name="latitud"
+            value={form.latitud}
+            onChange={onChange}
+          />
+          <Input
+            label="Longitud (opcional)"
+            name="longitud"
+            value={form.longitud}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Flags */}
+        <fieldset className="border rounded-xl p-3">
+          <legend className="text-sm font-medium px-1">
+            Características familiares
+          </legend>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+            {FLAG_FIELDS.map((key) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name={key}
+                  checked={(flags as any)[key]}
+                  onChange={onFlagChange}
+                  className="h-4 w-4"
+                />
+                <span>{labelFor(key)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition disabled:opacity-60"
+          >
+            {saving ? "Creando…" : "Crear restaurante"}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/restaurantes")}
+            className="rounded-xl border px-4 py-2"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Input({
+  label,
+  name,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  required?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label className="text-sm">
+      <span className="block text-gray-600 mb-1">{label}</span>
+      <input
+        className="w-full rounded-lg border px-3 py-2"
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={!!required}
+      />
+    </label>
+  );
+}
+
+function labelFor(k: string) {
+  const map: Record<string, string> = {
+    zonaAmplia: "Zona amplia",
+    parqueCercano: "Parque cercano",
+    zonaInfantil: "Zona infantil",
+    tronaDisponible: "Trona disponible",
+    cambiadorDisponible: "Cambiador disponible",
+    sitioParaCarrito: "Sitio para carrito",
+    terrazaSegura: "Terraza segura",
+    actividadesParaNinos: "Actividades para niños",
+    menuInfantil: "Menú infantil",
+    aptoVegetariano: "Apto vegetariano",
+    aptoVegano: "Apto vegano",
+    sinPantallas: "Sin pantallas",
+    ambienteFamiliar: "Ambiente familiar",
+    accesibleConCarrito: "Accesible con carrito",
+  };
+  return map[k] || k;
+}
+
+
+===== FILE: dashboard\src\pages\RestauranteEditPage.tsx =====
+
+// src/pages/RestauranteEditPage.tsx
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  getRestauranteById,
+  updateRestaurante,
+  regeocodeRestaurante,
+  type Restaurante,
+} from "../services/restauranteService";
+
+const FLAG_FIELDS = [
+  "zonaAmplia",
+  "parqueCercano",
+  "zonaInfantil",
+  "tronaDisponible",
+  "cambiadorDisponible",
+  "sitioParaCarrito",
+  "terrazaSegura",
+  "actividadesParaNinos",
+  "menuInfantil",
+  "aptoVegetariano",
+  "aptoVegano",
+  "sinPantallas",
+  "ambienteFamiliar",
+  "accesibleConCarrito",
+] as const;
+
+type FlagsState = Record<(typeof FLAG_FIELDS)[number], boolean>;
+
+export default function RestauranteEditPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    nombre: "",
+    direccion: "",
+    localidad: "",
+    ciudad: "",
+    provincia: "",
+    codigoPostal: "",
+    pais: "España",
+    telefonoRestaurante: "",
+    emailRestaurante: "",
+    sitioWeb: "",
+    horario: "",
+    descripcion: "",
+    latitud: "",
+    longitud: "",
+    imagenesText: "",
+  });
+
+  const [flags, setFlags] = useState<FlagsState>(
+    () => Object.fromEntries(FLAG_FIELDS.map((k) => [k, false])) as FlagsState
+  );
+
+  // Carga inicial
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await getRestauranteById(id!);
+        if (!mounted) return;
+
+        setForm({
+          nombre: data.nombre || "",
+          direccion: data.direccion || "",
+          localidad: data.localidad || "",
+          ciudad: data.ciudad || "",
+          provincia: data.provincia || "",
+          codigoPostal: data.codigoPostal || "",
+          pais: data.pais || "España",
+          telefonoRestaurante: data.telefonoRestaurante || "",
+          emailRestaurante: data.emailRestaurante || "",
+          sitioWeb: data.sitioWeb || "",
+          horario: data.horario || "",
+          descripcion: data.descripcion || "",
+          latitud: data.latitud != null ? String(data.latitud) : "",
+          longitud: data.longitud != null ? String(data.longitud) : "",
+          imagenesText: Array.isArray(data.imagenes)
+            ? data.imagenes.join("\n")
+            : "",
+        });
+
+        setFlags((prev) => {
+          const next = { ...prev };
+          for (const k of FLAG_FIELDS) {
+            next[k] = Boolean((data as any)[k]);
+          }
+          return next;
+        });
+      } catch (e: any) {
+        setError(e?.response?.data?.error ?? "Error al cargar restaurante");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  const imagenesArray = useMemo(
+    () =>
+      form.imagenesText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [form.imagenesText]
+  );
+
+  const onChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  };
+
+  const onFlagChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFlags((s) => ({ ...s, [name]: checked }));
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: Partial<Restaurante> & Record<string, any> = {
+        nombre: form.nombre.trim(),
+        direccion: form.direccion.trim(),
+        localidad: form.localidad.trim(),
+        ciudad: form.ciudad.trim(),
+        provincia: form.provincia.trim(),
+        codigoPostal: form.codigoPostal.trim() || undefined,
+        pais: form.pais.trim() || undefined,
+        telefonoRestaurante: form.telefonoRestaurante.trim() || undefined,
+        emailRestaurante: form.emailRestaurante.trim() || undefined,
+        sitioWeb: form.sitioWeb.trim() || undefined,
+        horario: form.horario.trim() || undefined,
+        descripcion: form.descripcion.trim(),
+        imagenes: imagenesArray,
+        ...flags,
+      };
+
+      if (form.latitud !== "") {
+        const n = Number(form.latitud);
+        if (!Number.isNaN(n)) payload.latitud = n;
+      }
+      if (form.longitud !== "") {
+        const n = Number(form.longitud);
+        if (!Number.isNaN(n)) payload.longitud = n;
+      }
+
+      Object.keys(payload).forEach(
+        (k) => payload[k] === undefined && delete payload[k]
+      );
+
+      await updateRestaurante(id!, payload);
+      navigate("/restaurantes");
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const msg = e?.response?.data?.error ?? "Error al guardar cambios";
+      if (status === 409) setError("Ya existe un restaurante con ese nombre.");
+      else setError(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onRegeo = async () => {
+    try {
+      await regeocodeRestaurante(id!);
+      const data = await getRestauranteById(id!);
+      setForm((s) => ({
+        ...s,
+        latitud: data.latitud != null ? String(data.latitud) : "",
+        longitud: data.longitud != null ? String(data.longitud) : "",
+      }));
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "Error al re-geocodificar");
+    }
+  };
+
+  // ⬇️ Este return está DENTRO del componente (ojo a las llaves de arriba)
+  if (loading) {
+    return (
+      <div className="p-4">
+        <h1 className="text-xl font-semibold mb-2">Editar restaurante</h1>
+        <p>Cargando…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Editar restaurante</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+          >
+            Volver
+          </button>
+          <button
+            onClick={onRegeo}
+            className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+          >
+            Re-geocodificar
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="text-sm text-red-600">{error}</div>}
+
+      <form
+        onSubmit={onSubmit}
+        className="rounded-2xl border bg-white p-4 shadow-sm space-y-6"
+      >
+        {/* Básicos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nombre *"
+            name="nombre"
+            value={form.nombre}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Dirección *"
+            name="direccion"
+            value={form.direccion}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Localidad *"
+            name="localidad"
+            value={form.localidad}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Ciudad *"
+            name="ciudad"
+            value={form.ciudad}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Provincia *"
+            name="provincia"
+            value={form.provincia}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Código postal"
+            name="codigoPostal"
+            value={form.codigoPostal}
+            onChange={onChange}
+          />
+          <Input
+            label="País"
+            name="pais"
+            value={form.pais}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Contacto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Teléfono"
+            name="telefonoRestaurante"
+            value={form.telefonoRestaurante}
+            onChange={onChange}
+          />
+          <Input
+            label="Email"
+            name="emailRestaurante"
+            value={form.emailRestaurante}
+            onChange={onChange}
+          />
+          <Input
+            label="Sitio web"
+            name="sitioWeb"
+            value={form.sitioWeb}
+            onChange={onChange}
+          />
+          <Input
+            label="Horario"
+            name="horario"
+            value={form.horario}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Descripción */}
+        <label className="text-sm block">
+          <span className="block text-gray-600 mb-1">Descripción *</span>
+          <textarea
+            className="w-full rounded-lg border px-3 py-2 min-h-[100px]"
+            name="descripcion"
+            value={form.descripcion}
+            onChange={onChange}
+            required
+          />
+        </label>
+
+        {/* Imágenes */}
+        <label className="text-sm block">
+          <span className="block text-gray-600 mb-1">
+            Imágenes (una URL por línea)
+          </span>
+          <textarea
+            className="w-full rounded-lg border px-3 py-2 min-h-[80px]"
+            name="imagenesText"
+            value={form.imagenesText}
+            onChange={onChange}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            {imagenesArray.length} imagen(es)
+          </div>
+        </label>
+
+        {/* Coordenadas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Latitud (opcional)"
+            name="latitud"
+            value={form.latitud}
+            onChange={onChange}
+          />
+          <Input
+            label="Longitud (opcional)"
+            name="longitud"
+            value={form.longitud}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Flags */}
+        <fieldset className="border rounded-xl p-3">
+          <legend className="text-sm font-medium px-1">
+            Características familiares
+          </legend>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+            {FLAG_FIELDS.map((key) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name={key}
+                  checked={flags[key]}
+                  onChange={onFlagChange}
+                  className="h-4 w-4"
+                />
+                <span>{labelFor(key)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition disabled:opacity-60"
+          >
+            {saving ? "Guardando…" : "Guardar cambios"}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/restaurantes")}
+            className="rounded-xl border px-4 py-2"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Input({
+  label,
+  name,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  required?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label className="text-sm">
+      <span className="block text-gray-600 mb-1">{label}</span>
+      <input
+        className="w-full rounded-lg border px-3 py-2"
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={!!required}
+      />
+    </label>
+  );
+}
+
+function labelFor(k: string) {
+  const map: Record<string, string> = {
+    zonaAmplia: "Zona amplia",
+    parqueCercano: "Parque cercano",
+    zonaInfantil: "Zona infantil",
+    tronaDisponible: "Trona disponible",
+    cambiadorDisponible: "Cambiador disponible",
+    sitioParaCarrito: "Sitio para carrito",
+    terrazaSegura: "Terraza segura",
+    actividadesParaNinos: "Actividades para niños",
+    menuInfantil: "Menú infantil",
+    aptoVegetariano: "Apto vegetariano",
+    aptoVegano: "Apto vegano",
+    sinPantallas: "Sin pantallas",
+    ambienteFamiliar: "Ambiente familiar",
+    accesibleConCarrito: "Accesible con carrito",
+  };
+  return map[k] || k;
+}
+
+
+===== FILE: dashboard\src\pages\RestauranteForm.tsx =====
+
+// src/pages/RestauranteForm.tsx
+import { useState, useMemo, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  createRestaurante,
+  regeocodeRestaurante,
+  type Restaurante,
+} from "../services/restauranteService";
+
+// mismas flags que tu modelo
+const FLAG_FIELDS = [
+  "zonaAmplia",
+  "parqueCercano",
+  "zonaInfantil",
+  "tronaDisponible",
+  "cambiadorDisponible",
+  "sitioParaCarrito",
+  "terrazaSegura",
+  "actividadesParaNinos",
+  "menuInfantil",
+  "aptoVegetariano",
+  "aptoVegano",
+  "sinPantallas",
+  "ambienteFamiliar",
+  "accesibleConCarrito",
+] as const;
+
+type FlagsState = Record<(typeof FLAG_FIELDS)[number], boolean>;
+
+export default function RestauranteForm() {
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({
+    nombre: "",
+    direccion: "",
+    localidad: "",
+    ciudad: "",
+    provincia: "",
+    codigoPostal: "",
+    pais: "España",
+    telefonoRestaurante: "",
+    emailRestaurante: "",
+    sitioWeb: "",
+    horario: "",
+    descripcion: "",
+    latitud: "",
+    longitud: "",
+    imagenesText: "", // una URL por línea
+  });
+
+  const [flags, setFlags] = useState<FlagsState>(
+    () => Object.fromEntries(FLAG_FIELDS.map((k) => [k, false])) as FlagsState
+  );
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const imagenesArray = useMemo(
+    () =>
+      form.imagenesText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [form.imagenesText]
+  );
+
+  const onChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  };
+
+  const onFlagChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFlags((s) => ({ ...s, [name]: checked }));
+  };
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: Partial<Restaurante> & Record<string, any> = {
+        nombre: form.nombre.trim(),
+        direccion: form.direccion.trim(),
+        localidad: form.localidad.trim(),
+        ciudad: form.ciudad.trim(),
+        provincia: form.provincia.trim(),
+        codigoPostal: form.codigoPostal.trim() || undefined,
+        pais: form.pais.trim() || undefined,
+        telefonoRestaurante: form.telefonoRestaurante.trim() || undefined,
+        emailRestaurante: form.emailRestaurante.trim() || undefined,
+        sitioWeb: form.sitioWeb.trim() || undefined,
+        horario: form.horario.trim() || undefined,
+        descripcion: form.descripcion.trim(),
+        imagenes: imagenesArray,
+        ...flags,
+      };
+
+      // Coordenadas opcionales: solo si son números válidos
+      if (form.latitud !== "") {
+        const n = Number(form.latitud);
+        if (!Number.isNaN(n)) payload.latitud = n;
+      }
+      if (form.longitud !== "") {
+        const n = Number(form.longitud);
+        if (!Number.isNaN(n)) payload.longitud = n;
+      }
+
+      // Validación mínima en cliente
+      if (
+        !payload.nombre ||
+        !payload.direccion ||
+        !payload.localidad ||
+        !payload.ciudad ||
+        !payload.provincia ||
+        !payload.descripcion
+      ) {
+        throw new Error(
+          "Completa nombre, dirección, localidad, ciudad, provincia y descripción."
+        );
+      }
+
+      // Crear restaurante
+      const created = await createRestaurante(payload);
+
+      // Si no se enviaron coordenadas, intentamos geocodificar automáticamente
+      if (!payload.latitud || !payload.longitud) {
+        try {
+          await regeocodeRestaurante(created.id);
+          console.log("✅ Restaurante geocodificado automáticamente");
+        } catch {
+          console.warn("No se pudo geocodificar automáticamente");
+        }
+      }
+
+      navigate("/restaurantes");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.error || err?.message;
+      if (status === 409) {
+        setError("Ya existe un restaurante con ese nombre.");
+      } else {
+        setError(msg ?? "Error al crear restaurante");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Nuevo restaurante</h1>
+        <button
+          onClick={() => navigate(-1)}
+          className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+        >
+          Volver
+        </button>
+      </div>
+
+      <form
+        onSubmit={onSubmit}
+        className="rounded-2xl border bg-white p-4 shadow-sm space-y-6"
+      >
+        {error && <div className="text-sm text-red-600">{error}</div>}
+
+        {/* Datos básicos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nombre *"
+            name="nombre"
+            value={form.nombre}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Dirección *"
+            name="direccion"
+            value={form.direccion}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Localidad *"
+            name="localidad"
+            value={form.localidad}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Ciudad *"
+            name="ciudad"
+            value={form.ciudad}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Provincia *"
+            name="provincia"
+            value={form.provincia}
+            onChange={onChange}
+            required
+          />
+          <Input
+            label="Código postal"
+            name="codigoPostal"
+            value={form.codigoPostal}
+            onChange={onChange}
+          />
+          <Input
+            label="País"
+            name="pais"
+            value={form.pais}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Contacto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Teléfono"
+            name="telefonoRestaurante"
+            value={form.telefonoRestaurante}
+            onChange={onChange}
+          />
+          <Input
+            label="Email"
+            name="emailRestaurante"
+            value={form.emailRestaurante}
+            onChange={onChange}
+          />
+          <Input
+            label="Sitio web"
+            name="sitioWeb"
+            value={form.sitioWeb}
+            onChange={onChange}
+          />
+          <Input
+            label="Horario"
+            name="horario"
+            value={form.horario}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Descripción */}
+        <label className="text-sm block">
+          <span className="block text-gray-600 mb-1">Descripción *</span>
+          <textarea
+            className="w-full rounded-lg border px-3 py-2 min-h-[100px]"
+            name="descripcion"
+            value={form.descripcion}
+            onChange={onChange}
+            required
+          />
+        </label>
+
+        {/* Imágenes */}
+        <label className="text-sm block">
+          <span className="block text-gray-600 mb-1">
+            Imágenes (una URL por línea)
+          </span>
+          <textarea
+            className="w-full rounded-lg border px-3 py-2 min-h-[80px]"
+            name="imagenesText"
+            value={form.imagenesText}
+            onChange={onChange}
+            placeholder="https://...jpg\nhttps://...png"
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            {imagenesArray.length} imagen(es)
+          </div>
+        </label>
+
+        {/* Coordenadas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Latitud (opcional)"
+            name="latitud"
+            value={form.latitud}
+            onChange={onChange}
+          />
+          <Input
+            label="Longitud (opcional)"
+            name="longitud"
+            value={form.longitud}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Flags */}
+        <fieldset className="border rounded-xl p-3">
+          <legend className="text-sm font-medium px-1">
+            Características familiares
+          </legend>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+            {FLAG_FIELDS.map((key) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name={key}
+                  checked={flags[key]}
+                  onChange={onFlagChange}
+                  className="h-4 w-4"
+                />
+                <span>{labelFor(key)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition disabled:opacity-60"
+          >
+            {saving ? "Guardando…" : "Crear restaurante"}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/restaurantes")}
+            className="rounded-xl border px-4 py-2"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Input({
+  label,
+  name,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  required?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label className="text-sm">
+      <span className="block text-gray-600 mb-1">{label}</span>
+      <input
+        className="w-full rounded-lg border px-3 py-2"
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={!!required}
+      />
+    </label>
+  );
+}
+
+function labelFor(k: string) {
+  const map: Record<string, string> = {
+    zonaAmplia: "Zona amplia",
+    parqueCercano: "Parque cercano",
+    zonaInfantil: "Zona infantil",
+    tronaDisponible: "Trona disponible",
+    cambiadorDisponible: "Cambiador disponible",
+    sitioParaCarrito: "Sitio para carrito",
+    terrazaSegura: "Terraza segura",
+    actividadesParaNinos: "Actividades para niños",
+    menuInfantil: "Menú infantil",
+    aptoVegetariano: "Apto vegetariano",
+    aptoVegano: "Apto vegano",
+    sinPantallas: "Sin pantallas",
+    ambienteFamiliar: "Ambiente familiar",
+    accesibleConCarrito: "Accesible con carrito",
+  };
+  return map[k] || k;
+}
+
+
+===== FILE: dashboard\src\pages\RestaurantesPage.tsx =====
+
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import clsx from "clsx";
+import { useQuery } from "@tanstack/react-query";
+import Map, { type MarkerItem } from "../components/map";
+import {
+  getRestaurantes,
+  deleteRestaurante,
+  regeocodeRestaurante,
+  type Restaurante,
+  type RestaurantesResponse,
+} from "../services/restauranteService";
+import FiltersBar, {
+  type Filters as UIFilters,
+  type FamilyFlags,
+} from "../components/FiltersBar";
+
+/** Tipos UI */
+export type Filters = UIFilters;
+
+const EMPTY_FLAGS: FamilyFlags = {
+  zonaAmplia: false,
+  parqueCercano: false,
+  zonaInfantil: false,
+  tronaDisponible: false,
+  cambiadorDisponible: false,
+  sitioParaCarrito: false,
+  terrazaSegura: false,
+  actividadesParaNinos: false,
+  menuInfantil: false,
+  aptoVegetariano: false,
+  aptoVegano: false,
+  sinPantallas: false,
+  ambienteFamiliar: false,
+  accesibleConCarrito: false,
+};
+
+const DEFAULT_FILTERS: Filters = {
+  q: "",
+  ciudad: "",
+  onlyWithCoords: false,
+  matchMode: "all",
+  flags: { ...EMPTY_FLAGS },
+  sortBy: "nombre_asc",
+};
+
+function toMarkerItems(data: Restaurante[]): MarkerItem[] {
+  return data
+    .filter(
+      (r) =>
+        typeof r.latitud === "number" &&
+        typeof r.longitud === "number" &&
+        r.latitud !== null &&
+        r.longitud !== null
+    )
+    .map((r) => ({
+      id: r.id,
+      nombre: r.nombre,
+      latitud: r.latitud as number,
+      longitud: r.longitud as number,
+      direccion: r.direccion ?? null,
+      ciudad: r.ciudad ?? r.localidad ?? null,
+    }));
+}
+
+export default function RestaurantesPage() {
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [showMap, setShowMap] = useState(true);
+  const navigate = useNavigate();
+
+  // Si cambian filtros, volvemos a la página 1
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  // Query params construidos desde la UI
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      q: filters.q || undefined,
+      ciudad: filters.ciudad || undefined,
+      localidad: filters.ciudad || undefined, // temporal mientras unificas
+      onlyWithCoords: filters.onlyWithCoords || undefined,
+      matchMode: filters.matchMode || undefined,
+      sortBy: filters.sortBy || undefined,
+      page,
+      pageSize,
+    };
+    Object.entries(filters.flags).forEach(([k, v]) => {
+      if (v) params[k] = true;
+    });
+    return params;
+  }, [filters, page, pageSize]);
+
+  // Fetch
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useQuery<RestaurantesResponse>({
+      queryKey: ["restaurantes", queryParams],
+      queryFn: () => getRestaurantes(queryParams),
+      staleTime: 30_000,
+      placeholderData: (prev) => prev,
+    });
+
+  // Lista y meta normalizadas
+  const list = useMemo<Restaurante[]>(() => data?.data ?? [], [data]);
+  const totalBD = data?.meta?.total ?? 0;
+  const totalPages = data?.meta?.totalPages ?? 1;
+  const currentPage = data?.meta?.page ?? page;
+
+  // Ciudades únicas para el selector
+  const ciudades = useMemo(() => {
+    const set = new Set<string>();
+    list.forEach((r) => {
+      const c = (r.ciudad || r.localidad || "").trim();
+      if (c) set.add(c);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+  }, [list]);
+
+  // El backend ya filtra y pagina
+  const pageData = list;
+  const itemsForMap = useMemo(() => toMarkerItems(pageData), [pageData]);
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <h1 className="text-xl font-semibold mb-2">Restaurantes</h1>
+        <p>Cargando datos…</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4">
+        <h1 className="text-xl font-semibold mb-2">Restaurantes</h1>
+        <p className="text-red-600">
+          Error al cargar: {(error as Error).message}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="mt-3 px-3 py-1 rounded bg-black text-white"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // Auth simple para mostrar el botón (ajusta si tienes roles)
+  const isAdmin = !!localStorage.getItem("token");
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Header con botón Añadir */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-semibold">Restaurantes</h1>
+
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/restaurantes/nuevo")}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition"
+          >
+            + Añadir restaurante
+          </button>
+        )}
+      </div>
+
+      {/* Info superior */}
+      <div className="text-sm text-gray-600">
+        Total en BD: <b>{totalBD}</b> &nbsp;|&nbsp; Mostrando en esta página:{" "}
+        <b>{pageData.length}</b> &nbsp;|&nbsp; Página: <b>{currentPage}</b>/
+        <b>{totalPages}</b> &nbsp;|&nbsp; Con mapa: <b>{itemsForMap.length}</b>
+        {isFetching ? <span className="ml-2">Actualizando…</span> : null}
+      </div>
+
+      {/* Filtros */}
+      <FiltersBar
+        filters={filters}
+        setFilters={setFilters}
+        ciudades={ciudades}
+        onRefetch={() => refetch()}
+        showMap={showMap}
+        setShowMap={setShowMap}
+      />
+
+      {/* Layout principal */}
+      <div className={clsx("grid gap-4", showMap ? "xl:grid-cols-2" : "")}>
+        {/* Lista */}
+        <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b bg-gray-50 text-sm text-gray-700">
+            Coincidencias en esta página ({pageData.length})
+          </div>
+
+          {pageData.length === 0 ? (
+            <div className="p-6 text-sm text-gray-600">
+              No hay restaurantes que coincidan con los filtros.
+            </div>
+          ) : (
+            <RestaurantsList data={pageData} onAfterChange={() => refetch()} />
+          )}
+
+          {/* Paginación */}
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+            onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          />
+        </div>
+
+        {/* Mapa */}
+        {showMap ? (
+          <div className="rounded-2xl border bg-white shadow-sm p-3">
+            <div className="text-sm text-gray-700 mb-2">
+              Mapa ({itemsForMap.length} con coordenadas)
+            </div>
+            <Map items={itemsForMap} />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Subcomponentes */
+function RestaurantsList({
+  data,
+  onAfterChange,
+}: {
+  data: Restaurante[];
+  onAfterChange?: () => void;
+}) {
+  const navigate = useNavigate();
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const onDelete = async (id: number) => {
+    if (!confirm("¿Eliminar este restaurante?")) return;
+    try {
+      setBusyId(id);
+      await deleteRestaurante(id);
+      onAfterChange?.();
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "Error al eliminar");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onRegeo = async (id: number) => {
+    try {
+      setBusyId(id);
+      await regeocodeRestaurante(id);
+      onAfterChange?.();
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "Error al re-geocodificar");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <ul className="divide-y">
+      {data.map((r) => (
+        <li key={r.id} className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="font-semibold">{r.nombre}</div>
+              <div className="text-sm text-gray-600">
+                {(r.direccion ?? "").trim()}
+                {r.ciudad || r.localidad ? ` — ${r.ciudad ?? r.localidad}` : ""}
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                {r.menuInfantil ? <Tag>Menú infantil</Tag> : null}
+                {r.zonaInfantil ? <Tag>Zona infantil</Tag> : null}
+                {r.tronaDisponible ? <Tag>Trona</Tag> : null}
+                {r.cambiadorDisponible ? <Tag>Cambiador</Tag> : null}
+                {r.aptoVegano ? <Tag>Vegano</Tag> : null}
+                {r.aptoVegetariano ? <Tag>Vegetariano</Tag> : null}
+                {r.terrazaSegura ? <Tag>Terraza segura</Tag> : null}
+                {r.sitioParaCarrito ? <Tag>Carrito ok</Tag> : null}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-xs text-gray-500">
+                {typeof r.latitud === "number" &&
+                typeof r.longitud === "number" ? (
+                  <span>Con mapa</span>
+                ) : (
+                  <span>Sin coordenadas</span>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate(`/restaurantes/${r.id}/editar`)}
+                  className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                  disabled={busyId === r.id}
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => onRegeo(r.id)}
+                  className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                  title="Re-geocodificar desde dirección"
+                  disabled={busyId === r.id}
+                >
+                  Re-geo
+                </button>
+                <button
+                  onClick={() => onDelete(r.id)}
+                  className="rounded border px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+                  disabled={busyId === r.id}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+      <div className="text-xs text-gray-600">
+        Página {page} de {totalPages}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+          disabled={page <= 1}
+          onClick={onPrev}
+        >
+          Anterior
+        </button>
+        <button
+          className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+          disabled={page >= totalPages}
+          onClick={onNext}
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 border">
+      {children}
+    </span>
+  );
+}
+
+
+===== FILE: dashboard\src\pages\SugerenciasPage.tsx =====
+
+// src/pages/SugerenciasPage.tsx
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  getSugerencias,
+  updateSugerenciaEstado,
+  aprobarSugerencia,
+  type Sugerencia,
+  type SugerenciasResponse,
+  type Estado,
+} from "../services/sugerenciaService";
+
+const TABS: { key: Estado; label: string }[] = [
+  { key: "PENDIENTE", label: "Pendientes" },
+  { key: "APROBADA", label: "Aprobadas" },
+  { key: "RECHAZADA", label: "Rechazadas" },
+];
+
+function EstadoBadge({ e }: { e: Sugerencia["estado"] }) {
+  const txt = e.toLowerCase();
+  const map: Record<string, string> = {
+    pendiente: "bg-amber-50 text-amber-800 border-amber-200",
+    aprobada: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    rechazada: "bg-rose-50 text-rose-800 border-rose-200",
+    duplicada: "bg-slate-50 text-slate-700 border-slate-200",
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs border ${map[txt]}`}>
+      {txt.charAt(0).toUpperCase() + txt.slice(1)}
+    </span>
+  );
+}
+
+function FlagChip({ children }: { children: string }) {
+  return (
+    <span className="px-2 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200 text-xs">
+      {children}
+    </span>
+  );
+}
+
+function Flags({ s }: { s: Sugerencia }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {s.zonaInfantil && <FlagChip>Zona infantil</FlagChip>}
+      {s.tronaDisponible && <FlagChip>Trona</FlagChip>}
+      {s.menuInfantil && <FlagChip>Menú infantil</FlagChip>}
+      {s.terrazaSegura && <FlagChip>Terraza segura</FlagChip>}
+      {s.parqueCercano && <FlagChip>Parque cercano</FlagChip>}
+      {s.aptoVegano && <FlagChip>Vegano</FlagChip>}
+      {s.aptoVegetariano && <FlagChip>Vegetariano</FlagChip>}
+      {s.accesibleConCarrito && <FlagChip>Accesible carrito</FlagChip>}
+      {s.zonaAmplia && <FlagChip>Zona amplia</FlagChip>}
+      {s.cambiadorDisponible && <FlagChip>Cambiador</FlagChip>}
+      {s.sitioParaCarrito && <FlagChip>Espacio carrito</FlagChip>}
+      {s.actividadesParaNinos && <FlagChip>Actividades niños</FlagChip>}
+      {s.sinPantallas && <FlagChip>Sin pantallas</FlagChip>}
+      {s.ambienteFamiliar && <FlagChip>Ambiente familiar</FlagChip>}
+    </div>
+  );
+}
+
+function DetailPanel({
+  sugerencia,
+  onClose,
+  onAprobar,
+  onRechazar,
+  loading,
+}: {
+  sugerencia: Sugerencia | null;
+  onClose: () => void;
+  onAprobar: () => void;
+  onRechazar: () => void;
+  loading?: boolean;
+}) {
+  if (!sugerencia) return null;
+  const s = sugerencia;
+  return (
+    <div className="fixed inset-0 z-40">
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={onClose}
+        aria-hidden
+      />
+      <aside className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl p-5 overflow-y-auto">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-lg font-semibold">{s.nombre}</h3>
+          <button
+            onClick={onClose}
+            className="px-3 py-1 rounded border hover:bg-gray-50"
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <div className="mt-3 text-sm text-gray-600">
+          <div className="font-medium text-gray-800">Dirección</div>
+          <div>
+            {s.direccion}
+            {s.localidad ? `, ${s.localidad}` : ""}
+            {s.ciudad ? `, ${s.ciudad}` : ""}
+            {s.provincia ? `, ${s.provincia}` : ""}
+            {s.codigoPostal ? ` (${s.codigoPostal})` : ""}
+            {s.pais ? ` — ${s.pais}` : ""}
+          </div>
+        </div>
+
+        {s.descripcion && (
+          <div className="mt-4">
+            <div className="font-medium text-gray-800">Descripción</div>
+            <p className="text-gray-700">{s.descripcion}</p>
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <div className="font-medium text-gray-800">Contacto</div>
+            <div>{s.nombreContacto}</div>
+            {s.emailContacto && (
+              <a
+                className="text-blue-600 hover:underline"
+                href={`mailto:${s.emailContacto}`}
+              >
+                {s.emailContacto}
+              </a>
+            )}
+          </div>
+          <div>
+            <div className="font-medium text-gray-800">Fechas / Estado</div>
+            <div>
+              Estado: <EstadoBadge e={s.estado} />
+            </div>
+            <div>
+              Creada: {s.creadaEn ? new Date(s.creadaEn).toLocaleString() : "-"}
+            </div>
+            <div>
+              Procesada:{" "}
+              {s.procesadaEn ? new Date(s.procesadaEn).toLocaleString() : "-"}
+            </div>
+          </div>
+        </div>
+
+        {s.comentarios && (
+          <div className="mt-4">
+            <div className="font-medium text-gray-800">Comentarios</div>
+            <p className="text-gray-700 whitespace-pre-wrap">{s.comentarios}</p>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="font-medium text-gray-800 mb-2">Banderas</div>
+          <Flags s={s} />
+        </div>
+
+        <div className="mt-6 flex gap-2">
+          <button
+            onClick={onAprobar}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg border border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            Aprobar
+          </button>
+          <button
+            onClick={onRechazar}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+          >
+            Rechazar
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+export default function SugerenciasPage() {
+  const [tab, setTab] = useState<Estado>("PENDIENTE");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [active, setActive] = useState<Sugerencia | null>(null);
+
+  const qc = useQueryClient();
+
+  const q = useQuery<SugerenciasResponse>({
+    queryKey: ["sugs", tab, page, pageSize],
+    queryFn: () => getSugerencias({ estado: tab, page, pageSize }),
+    // v5: sustituto de keepPreviousData
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
+  });
+
+  const mPatch = useMutation({
+    mutationFn: (vars: { id: number; estado: Estado }) =>
+      updateSugerenciaEstado(vars.id, vars.estado),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sugs"] }),
+  });
+
+  const mAprobar = useMutation({
+    mutationFn: (id: number) => aprobarSugerencia(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sugs"] }),
+  });
+
+  const total = q.data?.meta?.total ?? 0;
+  const pages = useMemo(
+    () => Math.max(1, Math.ceil(total / pageSize)),
+    [total]
+  );
+
+  const items: Sugerencia[] = q.data?.data ?? [];
+
+  return (
+    <div className="max-w-6xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold">Sugerencias</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => {
+              setTab(t.key);
+              setPage(1);
+              setActive(null);
+            }}
+            className={`px-4 py-2 rounded-full border ${
+              tab === t.key
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-800 hover:bg-gray-50"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tabla */}
+      <div className="rounded-2xl border bg-white overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="px-4 py-3 text-left">Nombre</th>
+              <th className="px-4 py-3 text-left">Dirección</th>
+              <th className="px-4 py-3 text-left">Estado</th>
+              <th className="px-4 py-3 text-left">Creada</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {q.isLoading ? (
+              <tr>
+                <td className="px-4 py-6" colSpan={5}>
+                  Cargando…
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td className="px-4 py-6 text-gray-500" colSpan={5}>
+                  No hay sugerencias.
+                </td>
+              </tr>
+            ) : (
+              items.map((s: Sugerencia) => (
+                <tr key={s.id} className="border-t">
+                  <td className="px-4 py-3">{s.nombre}</td>
+                  <td className="px-4 py-3">
+                    {s.direccion}
+                    {s.localidad ? `, ${s.localidad}` : ""}
+                    {s.ciudad ? `, ${s.ciudad}` : ""}
+                  </td>
+                  <td className="px-4 py-3">
+                    <EstadoBadge e={s.estado} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {s.creadaEn ? new Date(s.creadaEn).toLocaleString() : "-"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setActive(s)}
+                        className="px-3 py-1.5 rounded-lg border bg-white hover:bg-gray-50"
+                      >
+                        Ver detalle
+                      </button>
+                      {tab === "PENDIENTE" && (
+                        <>
+                          <button
+                            onClick={() => mAprobar.mutate(s.id)}
+                            className="px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                            disabled={mAprobar.isPending}
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={() =>
+                              mPatch.mutate({ id: s.id, estado: "RECHAZADA" })
+                            }
+                            className="px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                            disabled={mPatch.isPending}
+                          >
+                            Rechazar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Paginación */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1 || q.isLoading}
+          className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-60"
+        >
+          Anterior
+        </button>
+        <div className="text-sm text-gray-600">
+          Página {page} de {pages} • Total {total}
+        </div>
+        <button
+          onClick={() => setPage((p) => Math.min(pages, p + 1))}
+          disabled={page >= pages || q.isLoading}
+          className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-60"
+        >
+          Siguiente
+        </button>
+      </div>
+
+      {/* Panel detalle */}
+      <DetailPanel
+        sugerencia={active}
+        onClose={() => setActive(null)}
+        onAprobar={() => active && mAprobar.mutate(active.id)}
+        onRechazar={() =>
+          active && mPatch.mutate({ id: active.id, estado: "RECHAZADA" })
+        }
+        loading={mAprobar.isPending || mPatch.isPending}
+      />
+    </div>
+  );
+}
+
+
+===== FILE: dashboard\src\services\adminService.ts =====
+
+import api from "./api";
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+}
+
+export async function loginAdmin(body: LoginBody): Promise<LoginResponse> {
+  const { data } = await api.post("/admin/login", body);
+  return data;
+}
+
+
+===== FILE: dashboard\src\services\api.ts =====
+
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: false,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) config.headers = {};
+    (config.headers as Record<string, string>)[
+      "Authorization"
+    ] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default api;
+
+
+===== FILE: dashboard\src\services\restauranteService.ts =====
+
+import api from "./api";
+
+export type Restaurante = {
+  id: number;
+  nombre: string;
+  direccion: string;
+  localidad: string;
+  ciudad: string;
+  provincia: string;
+  descripcion: string;
+  slug: string;
+
+  codigoPostal?: string | null;
+  pais?: string | null;
+  telefonoRestaurante?: string | null;
+  emailRestaurante?: string | null;
+  sitioWeb?: string | null;
+  horario?: string | null;
+
+  imagenes: string[];
+
+  latitud?: number | null;
+  longitud?: number | null;
+
+  zonaAmplia?: boolean;
+  parqueCercano?: boolean;
+  zonaInfantil?: boolean;
+  tronaDisponible?: boolean;
+  cambiadorDisponible?: boolean;
+  sitioParaCarrito?: boolean;
+  terrazaSegura?: boolean;
+  actividadesParaNinos?: boolean;
+  menuInfantil?: boolean;
+  aptoVegetariano?: boolean;
+  aptoVegano?: boolean;
+  sinPantallas?: boolean;
+  ambienteFamiliar?: boolean;
+  accesibleConCarrito?: boolean;
+
+  activo?: boolean;
+  verificado?: boolean;
+  vistas?: number;
+
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type RestaurantesResponse = {
+  data: Restaurante[];
+  meta: { total: number; page: number; pageSize: number; totalPages: number };
+};
+
+function cleanParams(params?: Record<string, unknown>) {
+  if (!params) return undefined;
+  return Object.fromEntries(
+    Object.entries(params).filter(
+      ([, v]) => v !== undefined && v !== "" && v !== false
+    )
+  );
+}
+
+export async function getRestaurantes(params?: Record<string, unknown>) {
+  const { data } = await api.get("/restaurantes", {
+    params: cleanParams(params),
+  });
+
+  if (data && typeof data === "object" && "data" in data && "meta" in data) {
+    return data as RestaurantesResponse;
+  }
+  if (data && typeof data === "object" && "items" in data) {
+    const d = data as {
+      items: Restaurante[];
+      total: number;
+      page: number;
+      pageSize: number;
+    };
+    return {
+      data: d.items,
+      meta: {
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+        totalPages: Math.max(1, Math.ceil(d.total / Math.max(1, d.pageSize))),
+      },
+    } satisfies RestaurantesResponse;
+  }
+  if (Array.isArray(data)) {
+    const arr = data as Restaurante[];
+    return {
+      data: arr,
+      meta: {
+        total: arr.length,
+        page: 1,
+        pageSize: arr.length || 1,
+        totalPages: 1,
+      },
+    } satisfies RestaurantesResponse;
+  }
+  return { data: [], meta: { total: 0, page: 1, pageSize: 10, totalPages: 1 } };
+}
+
+// 👇 GET por id (lo usa EditPage)
+export async function getRestauranteById(id: number | string) {
+  const { data } = await api.get<Restaurante>(`/restaurantes/${id}`);
+  return data;
+}
+
+export async function createRestaurante(
+  payload: Partial<Restaurante> & Record<string, any>
+) {
+  const body = {
+    imagenes: Array.isArray(payload.imagenes) ? payload.imagenes : [],
+    ...payload,
+  };
+  const { data } = await api.post<Restaurante>("/restaurantes", body);
+  return data;
+}
+
+export async function updateRestaurante(
+  id: number | string,
+  payload: Partial<Restaurante> & Record<string, any>
+) {
+  const { data } = await api.put<Restaurante>(`/restaurantes/${id}`, payload);
+  return data;
+}
+
+export async function deleteRestaurante(id: number | string) {
+  const { data } = await api.delete(`/restaurantes/${id}`);
+  return data;
+}
+
+export async function regeocodeRestaurante(id: number | string) {
+  const { data } = await api.post(`/restaurantes/${id}/regeocode`);
+  return data;
+}
+
+
+===== FILE: dashboard\src\services\sugerenciaService.ts =====
+
+// src/services/sugerenciaService.ts
+import api from "./api";
+
+export type Estado = "PENDIENTE" | "APROBADA" | "RECHAZADA" | "DUPLICADA";
+
+export type Sugerencia = {
+  id: number;
+  nombre: string;
+  slug: string;
+  direccion: string;
+  localidad: string;
+  ciudad: string;
+  provincia: string;
+  codigoPostal?: string | null;
+  pais?: string | null;
+
+  descripcion: string;
+
+  nombreContacto: string;
+  emailContacto?: string | null;
+  comentarios?: string | null;
+
+  zonaAmplia: boolean;
+  parqueCercano: boolean;
+  zonaInfantil: boolean;
+  tronaDisponible: boolean;
+  cambiadorDisponible: boolean;
+  sitioParaCarrito: boolean;
+  terrazaSegura: boolean;
+  actividadesParaNinos: boolean;
+  menuInfantil: boolean;
+  aptoVegetariano: boolean;
+  aptoVegano: boolean;
+  sinPantallas: boolean;
+  ambienteFamiliar: boolean;
+  accesibleConCarrito: boolean;
+
+  latitud?: number | null;
+  longitud?: number | null;
+
+  estado: Estado;
+  creadaEn: string;
+  procesadaEn?: string | null;
+  restauranteId?: number | null;
+};
+
+export type SugerenciasResponse = {
+  data: Sugerencia[];
+  meta: { total: number; page: number; pageSize: number; pages: number };
+};
+
+export async function getSugerencias(params: {
+  page?: number;
+  pageSize?: number;
+  estado?: Estado;
+  search?: string;
+}) {
+  const { data } = await api.get<SugerenciasResponse>("/sugerencias", {
+    params,
+  });
+  return data;
+}
+
+export async function updateSugerenciaEstado(id: number, estado: Estado) {
+  const { data } = await api.patch<Sugerencia>(`/sugerencias/${id}`, {
+    estado,
+  });
+  return data;
+}
+
+export async function aprobarSugerencia(id: number) {
+  const { data } = await api.post<{ mensaje: string; restaurante: any }>(
+    `/sugerencias/${id}/aprobar`
+  );
+  return data;
+}
+
+
+===== FILE: dashboard\src\App.css =====
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+
+===== FILE: dashboard\src\App.tsx =====
+
+// src/App.tsx
+import { Routes, Route, Navigate } from "react-router-dom";
+import DashboardLayout from "./components/DashboardLayout";
+import HomePage from "./pages/HomePage";
+import RestaurantesPage from "./pages/RestaurantesPage";
+import SugerenciasPage from "./pages/SugerenciasPage";
+import LoginPage from "./pages/LoginPage";
+import PrivateRoute from "./components/PrivateRoute";
+import RestauranteForm from "./pages/RestauranteForm"; // ⬅️ crear
+import RestauranteEditPage from "./pages/RestauranteEditPage"; // ⬅️ crear
+import "./app.css";
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Pública */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protegidas */}
+      <Route element={<PrivateRoute />}>
+        <Route element={<DashboardLayout />}>
+          {/* "/" */}
+          <Route index element={<HomePage />} />
+
+          {/* "/restaurantes" */}
+          <Route path="/restaurantes" element={<RestaurantesPage />} />
+
+          {/* Crear */}
+          <Route path="/restaurantes/nuevo" element={<RestauranteForm />} />
+
+          {/* Editar */}
+          <Route
+            path="/restaurantes/:id/editar"
+            element={<RestauranteEditPage />}
+          />
+
+          {/* "/sugerencias" */}
+          <Route path="/sugerencias" element={<SugerenciasPage />} />
+        </Route>
+      </Route>
+
+      {/* comodín: cualquier otra cosa va a "/" */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+
+===== FILE: dashboard\src\index.css =====
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Altura a pantalla completa para toda la app */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Base UI */
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+    Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  background: #f9fafb;
+  color: #111827;
+}
+
+
+===== FILE: dashboard\src\main.tsx =====
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import App from "./App";
+import "./index.css";
+
+/** CSS de Leaflet y del clustering */
+import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+
+/** Fix global de iconos de Leaflet con Vite */
+import L from "leaflet";
+import iconUrl from "leaflet/dist/images/marker-icon.png";
+import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import shadowUrl from "leaflet/dist/images/marker-shadow.png";
+L.Icon.Default.mergeOptions({
+  iconUrl,
+  iconRetinaUrl,
+  shadowUrl,
+});
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { refetchOnWindowFocus: false, staleTime: 30_000, retry: 1 },
+  },
+});
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </QueryClientProvider>
+  </React.StrictMode>
+);
+
+
+===== FILE: dashboard\src\vite-env.d.ts =====
+
+/// <reference types="vite/client" />
+
+
+===== FILE: dashboard\eslint.config.js =====
+
+// eslint.config.js
+import js from "@eslint/js";
+import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import tseslint from "typescript-eslint";
+import { globalIgnores } from "eslint/config";
+
+export default tseslint.config([
+  globalIgnores(["dist"]),
+  {
+    files: ["**/*.{ts,tsx}"],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs["recommended-latest"],
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+    rules: {
+      // 🚀 Desactiva los errores por usar `any`
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+]);
+
+
+===== FILE: dashboard\package.json =====
+
+{
+  "name": "dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.85.0",
+    "axios": "^1.11.0",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
+    "leaflet.markercluster": "^1.5.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.8.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/leaflet": "^1.9.20",
+    "@types/leaflet.markercluster": "^1.5.5",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.14",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
+  }
+}
+
+
+===== FILE: dashboard\postcss.config.js =====
+
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+===== FILE: dashboard\README.md =====
+
+# React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      ...tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      ...tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      ...tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+
+===== FILE: dashboard\tailwind.config.js =====
+
+export default {
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: { extend: {} },
+  plugins: [],
+};
+
+
+===== FILE: dashboard\tsconfig.app.json =====
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
+
+
+===== FILE: dashboard\tsconfig.json =====
+
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+
+
+===== FILE: dashboard\tsconfig.node.json =====
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+
+===== FILE: dashboard\vite.config.ts =====
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+});

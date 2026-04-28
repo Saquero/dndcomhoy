@@ -1,5 +1,5 @@
 const prisma = require("../prisma");
-const bcrypt = require("bcrypt");
+const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const logger = require("../logger");
 
@@ -25,7 +25,7 @@ async function login(req, res) {
       return res.status(403).json({ message: "Cuenta de admin inactiva" });
     }
 
-    const validPassword = await bcrypt.compare(password, admin.password);
+    const validPassword = await bcryptjs.compare(password, admin.password);
     if (!validPassword) {
       return res.status(401).json({ message: "Credenciales incorrectas" });
     }
@@ -60,7 +60,7 @@ async function register(req, res) {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcryptjs.hash(password, 10);
 
     const newAdmin = await prisma.admin.create({
       data: {
@@ -136,7 +136,7 @@ async function actualizarAdmin(req, res) {
   try {
     let dataToUpdate = { email, nombre, activo };
     if (password) {
-      dataToUpdate.password = await bcrypt.hash(password, 10);
+      dataToUpdate.password = await bcryptjs.hash(password, 10);
     }
     Object.keys(dataToUpdate).forEach(
       (key) => dataToUpdate[key] === undefined && delete dataToUpdate[key]

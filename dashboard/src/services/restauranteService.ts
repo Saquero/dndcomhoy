@@ -1,0 +1,136 @@
+﻿import api from "./api";
+
+export type Restaurante = {
+  id: number;
+  nombre: string;
+  direccion: string;
+  localidad: string;
+  ciudad: string;
+  provincia: string;
+  descripcion: string;
+  slug: string;
+
+  codigoPostal?: string | null;
+  pais?: string | null;
+  telefonoRestaurante?: string | null;
+  emailRestaurante?: string | null;
+  sitioWeb?: string | null;
+  horario?: string | null;
+
+  imagenes: string[];
+
+  latitud?: number | null;
+  longitud?: number | null;
+
+  zonaAmplia?: boolean;
+  parqueCercano?: boolean;
+  zonaInfantil?: boolean;
+  tronaDisponible?: boolean;
+  cambiadorDisponible?: boolean;
+  sitioParaCarrito?: boolean;
+  terrazaSegura?: boolean;
+  actividadesParaNinos?: boolean;
+  menuInfantil?: boolean;
+  aptoVegetariano?: boolean;
+  aptoVegano?: boolean;
+  sinPantallas?: boolean;
+  ambienteFamiliar?: boolean;
+  accesibleConCarrito?: boolean;
+
+  activo?: boolean;
+  verificado?: boolean;
+  vistas?: number;
+
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type RestaurantesResponse = {
+  data: Restaurante[];
+  meta: { total: number; page: number; pageSize: number; totalPages: number };
+};
+
+function cleanParams(params?: Record<string, unknown>) {
+  if (!params) return undefined;
+  return Object.fromEntries(
+    Object.entries(params).filter(
+      ([, v]) => v !== undefined && v !== "" && v !== false
+    )
+  );
+}
+
+export async function getRestaurantes(params?: Record<string, unknown>) {
+  const { data } = await api.get("/restaurantes", {
+    params: cleanParams(params),
+  });
+
+  if (data && typeof data === "object" && "data" in data && "meta" in data) {
+    return data as RestaurantesResponse;
+  }
+  if (data && typeof data === "object" && "items" in data) {
+    const d = data as {
+      items: Restaurante[];
+      total: number;
+      page: number;
+      pageSize: number;
+    };
+    return {
+      data: d.items,
+      meta: {
+        total: d.total,
+        page: d.page,
+        pageSize: d.pageSize,
+        totalPages: Math.max(1, Math.ceil(d.total / Math.max(1, d.pageSize))),
+      },
+    } satisfies RestaurantesResponse;
+  }
+  if (Array.isArray(data)) {
+    const arr = data as Restaurante[];
+    return {
+      data: arr,
+      meta: {
+        total: arr.length,
+        page: 1,
+        pageSize: arr.length || 1,
+        totalPages: 1,
+      },
+    } satisfies RestaurantesResponse;
+  }
+  return { data: [], meta: { total: 0, page: 1, pageSize: 10, totalPages: 1 } };
+}
+
+// 👇 GET por id (lo usa EditPage)
+export async function getRestauranteById(id: number | string) {
+  const { data } = await api.get<Restaurante>(`/restaurantes/${id}`);
+  return data;
+}
+
+export async function createRestaurante(
+  payload: Partial<Restaurante> & Record<string, any>
+) {
+  const body = {
+    imagenes: Array.isArray(payload.imagenes) ? payload.imagenes : [],
+    ...payload,
+  };
+  const { data } = await api.post<Restaurante>("/restaurantes", body);
+  return data;
+}
+
+export async function updateRestaurante(
+  id: number | string,
+  payload: Partial<Restaurante> & Record<string, any>
+) {
+  const { data } = await api.put<Restaurante>(`/restaurantes/${id}`, payload);
+  return data;
+}
+
+export async function deleteRestaurante(id: number | string) {
+  const { data } = await api.delete(`/restaurantes/${id}`);
+  return data;
+}
+
+export async function regeocodeRestaurante(id: number | string) {
+  const { data } = await api.post(`/restaurantes/${id}/regeocode`);
+  return data;
+}
+

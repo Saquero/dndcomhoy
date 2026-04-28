@@ -15,13 +15,28 @@ const authMiddleware = require("../middlewares/auth.middleware");
  * @swagger
  * /sugerencias:
  *   get:
- *     summary: Obtener todas las sugerencias (solo admin)
+ *     summary: Obtener sugerencias paginadas (solo admin)
  *     tags: [Sugerencias]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *           enum: [pendiente, aprobada, rechazada, duplicada]
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
  *     responses:
  *       200:
- *         description: Lista de sugerencias
+ *         description: Lista paginada de sugerencias con meta
  */
 router.get("/", authMiddleware, sugerenciaController.obtenerSugerencias);
 
@@ -102,9 +117,44 @@ router.put(
 
 /**
  * @swagger
+ * /sugerencias/{id}:
+ *   patch:
+ *     summary: Actualizar el estado de una sugerencia (solo admin)
+ *     tags: [Sugerencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [estado]
+ *             properties:
+ *               estado:
+ *                 type: string
+ *                 enum: [pendiente, aprobada, rechazada, duplicada]
+ *     responses:
+ *       200:
+ *         description: Estado actualizado
+ *       400:
+ *         description: Estado inválido
+ *       404:
+ *         description: Sugerencia no encontrada
+ */
+router.patch("/:id", authMiddleware, sugerenciaController.actualizarEstado);
+
+/**
+ * @swagger
  * /sugerencias/{id}/aprobar:
  *   post:
- *     summary: Aprobar sugerencia (crear restaurante y eliminar sugerencia)
+ *     summary: Aprobar sugerencia (crear restaurante y marcar procesada)
  *     tags: [Sugerencias]
  *     security:
  *       - bearerAuth: []
@@ -115,7 +165,7 @@ router.put(
  *         schema:
  *           type: integer
  *     responses:
- *       200:
+ *       201:
  *         description: Sugerencia aprobada y restaurante creado
  *       404:
  *         description: Sugerencia no encontrada
@@ -130,7 +180,7 @@ router.post(
  * @swagger
  * /sugerencias/{id}:
  *   delete:
- *     summary: Eliminar sugerencia (rechazo)
+ *     summary: Eliminar sugerencia
  *     tags: [Sugerencias]
  *     security:
  *       - bearerAuth: []

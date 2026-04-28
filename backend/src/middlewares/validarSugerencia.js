@@ -2,29 +2,41 @@ module.exports = (req, res, next) => {
   const {
     nombre,
     direccion,
+    localidad,
+    ciudad,
+    provincia,
+    codigoPostal,
+    pais,
     descripcion,
     telefonoRestaurante,
     emailRestaurante,
     imagenes,
     estado,
+    latitud,
+    longitud,
   } = req.body;
 
-  // Campos obligatorios
-  if (!nombre?.trim()) {
+  if (!nombre?.trim())
     return res.status(400).json({ error: "El campo 'nombre' es obligatorio" });
-  }
-  if (!direccion?.trim()) {
+  if (!direccion?.trim())
     return res
       .status(400)
       .json({ error: "El campo 'direccion' es obligatorio" });
-  }
-  if (!descripcion?.trim()) {
+  if (!localidad?.trim())
+    return res
+      .status(400)
+      .json({ error: "El campo 'localidad' es obligatorio" });
+  if (!ciudad?.trim())
+    return res.status(400).json({ error: "El campo 'ciudad' es obligatorio" });
+  if (!provincia?.trim())
+    return res
+      .status(400)
+      .json({ error: "El campo 'provincia' es obligatorio" });
+  if (!descripcion?.trim())
     return res
       .status(400)
       .json({ error: "El campo 'descripcion' es obligatorio" });
-  }
 
-  // Validación de strings opcionales
   if (telefonoRestaurante && typeof telefonoRestaurante !== "string") {
     return res
       .status(400)
@@ -35,29 +47,34 @@ module.exports = (req, res, next) => {
       .status(400)
       .json({ error: "El campo 'emailRestaurante' debe ser string" });
   }
-
-  // Validar que 'imagenes' sea array de strings si viene
   if (imagenes) {
-    if (!Array.isArray(imagenes)) {
+    if (!Array.isArray(imagenes))
       return res
         .status(400)
         .json({ error: "El campo 'imagenes' debe ser un arreglo de strings" });
-    }
-
-    const noSonStrings = imagenes.some((img) => typeof img !== "string");
-    if (noSonStrings) {
+    if (imagenes.some((img) => typeof img !== "string"))
       return res
         .status(400)
         .json({ error: "Todas las imágenes deben ser strings" });
-    }
   }
-
-  // Validar 'estado' como string si viene
   if (estado && typeof estado !== "string") {
     return res.status(400).json({ error: "El campo 'estado' debe ser string" });
   }
 
-  // Validar booleanos opcionales (misma lista que en restaurante)
+  if (latitud !== undefined && typeof latitud !== "number") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'latitud' debe ser número" });
+  }
+  if (longitud !== undefined && typeof longitud !== "number") {
+    return res
+      .status(400)
+      .json({ error: "El campo 'longitud' debe ser número" });
+  }
+
+  // normaliza país por defecto si no viene
+  if (!pais) req.body.pais = "España";
+
   const booleanFields = [
     "zonaAmplia",
     "parqueCercano",
@@ -74,7 +91,6 @@ module.exports = (req, res, next) => {
     "actividadesParaNinos",
     "accesibleConCarrito",
   ];
-
   for (const field of booleanFields) {
     if (
       req.body[field] !== undefined &&
@@ -82,9 +98,11 @@ module.exports = (req, res, next) => {
       req.body[field] !== "true" &&
       req.body[field] !== "false"
     ) {
-      return res.status(400).json({
-        error: `El campo '${field}' debe ser booleano o 'true'/'false' como string`,
-      });
+      return res
+        .status(400)
+        .json({
+          error: `El campo '${field}' debe ser booleano o 'true'/'false'`,
+        });
     }
   }
 

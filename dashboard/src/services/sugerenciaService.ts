@@ -1,0 +1,75 @@
+﻿// src/services/sugerenciaService.ts
+import api from "./api";
+
+export type Estado = "PENDIENTE" | "APROBADA" | "RECHAZADA" | "DUPLICADA";
+
+export type Sugerencia = {
+  id: number;
+  nombre: string;
+  slug: string;
+  direccion: string;
+  localidad: string;
+  ciudad: string;
+  provincia: string;
+  codigoPostal?: string | null;
+  pais?: string | null;
+  descripcion: string;
+  nombreContacto: string;
+  emailContacto?: string | null;
+  comentarios?: string | null;
+  zonaAmplia: boolean;
+  parqueCercano: boolean;
+  zonaInfantil: boolean;
+  tronaDisponible: boolean;
+  cambiadorDisponible: boolean;
+  sitioParaCarrito: boolean;
+  terrazaSegura: boolean;
+  actividadesParaNinos: boolean;
+  menuInfantil: boolean;
+  aptoVegetariano: boolean;
+  aptoVegano: boolean;
+  sinPantallas: boolean;
+  ambienteFamiliar: boolean;
+  accesibleConCarrito: boolean;
+  latitud?: number | null;
+  longitud?: number | null;
+  estado: Estado;
+  creadaEn: string;
+  procesadaEn?: string | null;
+  restauranteId?: number | null;
+};
+
+export type SugerenciasResponse = {
+  data: Sugerencia[];
+  meta: { total: number; page: number; pageSize: number; pages: number };
+};
+
+export async function getSugerencias(params: {
+  page?: number;
+  pageSize?: number;
+  estado?: Estado;
+  search?: string;
+}) {
+  const { data } = await api.get<SugerenciasResponse>("/sugerencias", { params });
+  return data;
+}
+
+export async function updateSugerenciaEstado(id: number, estado: Estado) {
+  const { data } = await api.patch<Sugerencia>(`/sugerencias/${id}`, { estado });
+  return data;
+}
+
+export async function rechazarSugerencia(id: number, motivo?: string) {
+  const { data } = await api.patch<Sugerencia>(`/sugerencias/${id}`, {
+    estado: "RECHAZADA",
+    motivoRechazo: motivo || "",
+  });
+  return data;
+}
+
+export async function aprobarSugerencia(id: number) {
+  const { data } = await api.post<{ mensaje: string; restaurante: any }>(
+    `/sugerencias/${id}/aprobar`
+  );
+  return data;
+}

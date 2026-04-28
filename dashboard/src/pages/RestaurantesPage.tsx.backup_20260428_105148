@@ -1,0 +1,371 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import clsx from "clsx";
+import { useQuery } from "@tanstack/react-query";
+import Map, { type MarkerItem } from "../components/map";
+import {
+  getRestaurantes,
+  deleteRestaurante,
+  regeocodeRestaurante,
+  type Restaurante,
+  type RestaurantesResponse,
+} from "../services/restauranteService";
+import FiltersBar, {
+  type Filters as UIFilters,
+  type FamilyFlags,
+} from "../components/FiltersBar";
+
+/** Tipos UI */
+export type Filters = UIFilters;
+
+const EMPTY_FLAGS: FamilyFlags = {
+  zonaAmplia: false,
+  parqueCercano: false,
+  zonaInfantil: false,
+  tronaDisponible: false,
+  cambiadorDisponible: false,
+  sitioParaCarrito: false,
+  terrazaSegura: false,
+  actividadesParaNinos: false,
+  menuInfantil: false,
+  aptoVegetariano: false,
+  aptoVegano: false,
+  sinPantallas: false,
+  ambienteFamiliar: false,
+  accesibleConCarrito: false,
+};
+
+const DEFAULT_FILTERS: Filters = {
+  q: "",
+  ciudad: "",
+  onlyWithCoords: false,
+  matchMode: "all",
+  flags: { ...EMPTY_FLAGS },
+  sortBy: "nombre_asc",
+};
+
+function toMarkerItems(data: Restaurante[]): MarkerItem[] {
+  return data
+    .filter(
+      (r) =>
+        typeof r.latitud === "number" &&
+        typeof r.longitud === "number" &&
+        r.latitud !== null &&
+        r.longitud !== null
+    )
+    .map((r) => ({
+      id: r.id,
+      nombre: r.nombre,
+      latitud: r.latitud as number,
+      longitud: r.longitud as number,
+      direccion: r.direccion ?? null,
+      ciudad: r.ciudad ?? r.localidad ?? null,
+    }));
+}
+
+export default function RestaurantesPage() {
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [showMap, setShowMap] = useState(true);
+  const navigate = useNavigate();
+
+  // Si cambian filtros, volvemos a la página 1
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  // Query params construidos desde la UI
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      q: filters.q || undefined,
+      ciudad: filters.ciudad || undefined,
+      localidad: filters.ciudad || undefined, // temporal mientras unificas
+      onlyWithCoords: filters.onlyWithCoords || undefined,
+      matchMode: filters.matchMode || undefined,
+      sortBy: filters.sortBy || undefined,
+      page,
+      pageSize,
+    };
+    Object.entries(filters.flags).forEach(([k, v]) => {
+      if (v) params[k] = true;
+    });
+    return params;
+  }, [filters, page, pageSize]);
+
+  // Fetch
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useQuery<RestaurantesResponse>({
+      queryKey: ["restaurantes", queryParams],
+      queryFn: () => getRestaurantes(queryParams),
+      staleTime: 30_000,
+      placeholderData: (prev) => prev,
+    });
+
+  // Lista y meta normalizadas
+  const list = useMemo<Restaurante[]>(() => data?.data ?? [], [data]);
+  const totalBD = data?.meta?.total ?? 0;
+  const totalPages = data?.meta?.totalPages ?? 1;
+  const currentPage = data?.meta?.page ?? page;
+
+  // Ciudades únicas para el selector
+  const ciudades = useMemo(() => {
+    const set = new Set<string>();
+    list.forEach((r) => {
+      const c = (r.ciudad || r.localidad || "").trim();
+      if (c) set.add(c);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+  }, [list]);
+
+  // El backend ya filtra y pagina
+  const pageData = list;
+  const itemsForMap = useMemo(() => toMarkerItems(pageData), [pageData]);
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <h1 className="text-xl font-semibold mb-2">Restaurantes</h1>
+        <p>Cargando datos…</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4">
+        <h1 className="text-xl font-semibold mb-2">Restaurantes</h1>
+        <p className="text-red-600">
+          Error al cargar: {(error as Error).message}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="mt-3 px-3 py-1 rounded bg-black text-white"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // Auth simple para mostrar el botón (ajusta si tienes roles)
+  const isAdmin = !!localStorage.getItem("token");
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Header con botón Añadir */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-semibold">Restaurantes</h1>
+
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/restaurantes/nuevo")}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition"
+          >
+            + Añadir restaurante
+          </button>
+        )}
+      </div>
+
+      {/* Info superior */}
+      <div className="text-sm text-gray-600">
+        Total en BD: <b>{totalBD}</b> &nbsp;|&nbsp; Mostrando en esta página:{" "}
+        <b>{pageData.length}</b> &nbsp;|&nbsp; Página: <b>{currentPage}</b>/
+        <b>{totalPages}</b> &nbsp;|&nbsp; Con mapa: <b>{itemsForMap.length}</b>
+        {isFetching ? <span className="ml-2">Actualizando…</span> : null}
+      </div>
+
+      {/* Filtros */}
+      <FiltersBar
+        filters={filters}
+        setFilters={setFilters}
+        ciudades={ciudades}
+        onRefetch={() => refetch()}
+        showMap={showMap}
+        setShowMap={setShowMap}
+      />
+
+      {/* Layout principal */}
+      <div className={clsx("grid gap-4", showMap ? "xl:grid-cols-2" : "")}>
+        {/* Lista */}
+        <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b bg-gray-50 text-sm text-gray-700">
+            Coincidencias en esta página ({pageData.length})
+          </div>
+
+          {pageData.length === 0 ? (
+            <div className="p-6 text-sm text-gray-600">
+              No hay restaurantes que coincidan con los filtros.
+            </div>
+          ) : (
+            <RestaurantsList data={pageData} onAfterChange={() => refetch()} />
+          )}
+
+          {/* Paginación */}
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+            onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          />
+        </div>
+
+        {/* Mapa */}
+        {showMap ? (
+          <div className="rounded-2xl border bg-white shadow-sm p-3">
+            <div className="text-sm text-gray-700 mb-2">
+              Mapa ({itemsForMap.length} con coordenadas)
+            </div>
+            <Map items={itemsForMap} />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Subcomponentes */
+function RestaurantsList({
+  data,
+  onAfterChange,
+}: {
+  data: Restaurante[];
+  onAfterChange?: () => void;
+}) {
+  const navigate = useNavigate();
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const onDelete = async (id: number) => {
+    if (!confirm("¿Eliminar este restaurante?")) return;
+    try {
+      setBusyId(id);
+      await deleteRestaurante(id);
+      onAfterChange?.();
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "Error al eliminar");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onRegeo = async (id: number) => {
+    try {
+      setBusyId(id);
+      await regeocodeRestaurante(id);
+      onAfterChange?.();
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "Error al re-geocodificar");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <ul className="divide-y">
+      {data.map((r) => (
+        <li key={r.id} className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="font-semibold">{r.nombre}</div>
+              <div className="text-sm text-gray-600">
+                {(r.direccion ?? "").trim()}
+                {r.ciudad || r.localidad ? ` — ${r.ciudad ?? r.localidad}` : ""}
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                {r.menuInfantil ? <Tag>Menú infantil</Tag> : null}
+                {r.zonaInfantil ? <Tag>Zona infantil</Tag> : null}
+                {r.tronaDisponible ? <Tag>Trona</Tag> : null}
+                {r.cambiadorDisponible ? <Tag>Cambiador</Tag> : null}
+                {r.aptoVegano ? <Tag>Vegano</Tag> : null}
+                {r.aptoVegetariano ? <Tag>Vegetariano</Tag> : null}
+                {r.terrazaSegura ? <Tag>Terraza segura</Tag> : null}
+                {r.sitioParaCarrito ? <Tag>Carrito ok</Tag> : null}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-xs text-gray-500">
+                {typeof r.latitud === "number" &&
+                typeof r.longitud === "number" ? (
+                  <span>Con mapa</span>
+                ) : (
+                  <span>Sin coordenadas</span>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate(`/restaurantes/${r.id}/editar`)}
+                  className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                  disabled={busyId === r.id}
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => onRegeo(r.id)}
+                  className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                  title="Re-geocodificar desde dirección"
+                  disabled={busyId === r.id}
+                >
+                  Re-geo
+                </button>
+                <button
+                  onClick={() => onDelete(r.id)}
+                  className="rounded border px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+                  disabled={busyId === r.id}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+      <div className="text-xs text-gray-600">
+        Página {page} de {totalPages}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+          disabled={page <= 1}
+          onClick={onPrev}
+        >
+          Anterior
+        </button>
+        <button
+          className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+          disabled={page >= totalPages}
+          onClick={onNext}
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 border">
+      {children}
+    </span>
+  );
+}

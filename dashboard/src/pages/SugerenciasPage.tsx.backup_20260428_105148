@@ -1,0 +1,346 @@
+// src/pages/SugerenciasPage.tsx
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  getSugerencias,
+  updateSugerenciaEstado,
+  aprobarSugerencia,
+  type Sugerencia,
+  type SugerenciasResponse,
+  type Estado,
+} from "../services/sugerenciaService";
+
+const TABS: { key: Estado; label: string }[] = [
+  { key: "PENDIENTE", label: "Pendientes" },
+  { key: "APROBADA", label: "Aprobadas" },
+  { key: "RECHAZADA", label: "Rechazadas" },
+];
+
+function EstadoBadge({ e }: { e: Sugerencia["estado"] }) {
+  const txt = e.toLowerCase();
+  const map: Record<string, string> = {
+    pendiente: "bg-amber-50 text-amber-800 border-amber-200",
+    aprobada: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    rechazada: "bg-rose-50 text-rose-800 border-rose-200",
+    duplicada: "bg-slate-50 text-slate-700 border-slate-200",
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs border ${map[txt]}`}>
+      {txt.charAt(0).toUpperCase() + txt.slice(1)}
+    </span>
+  );
+}
+
+function FlagChip({ children }: { children: string }) {
+  return (
+    <span className="px-2 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200 text-xs">
+      {children}
+    </span>
+  );
+}
+
+function Flags({ s }: { s: Sugerencia }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {s.zonaInfantil && <FlagChip>Zona infantil</FlagChip>}
+      {s.tronaDisponible && <FlagChip>Trona</FlagChip>}
+      {s.menuInfantil && <FlagChip>Menú infantil</FlagChip>}
+      {s.terrazaSegura && <FlagChip>Terraza segura</FlagChip>}
+      {s.parqueCercano && <FlagChip>Parque cercano</FlagChip>}
+      {s.aptoVegano && <FlagChip>Vegano</FlagChip>}
+      {s.aptoVegetariano && <FlagChip>Vegetariano</FlagChip>}
+      {s.accesibleConCarrito && <FlagChip>Accesible carrito</FlagChip>}
+      {s.zonaAmplia && <FlagChip>Zona amplia</FlagChip>}
+      {s.cambiadorDisponible && <FlagChip>Cambiador</FlagChip>}
+      {s.sitioParaCarrito && <FlagChip>Espacio carrito</FlagChip>}
+      {s.actividadesParaNinos && <FlagChip>Actividades niños</FlagChip>}
+      {s.sinPantallas && <FlagChip>Sin pantallas</FlagChip>}
+      {s.ambienteFamiliar && <FlagChip>Ambiente familiar</FlagChip>}
+    </div>
+  );
+}
+
+function DetailPanel({
+  sugerencia,
+  onClose,
+  onAprobar,
+  onRechazar,
+  loading,
+}: {
+  sugerencia: Sugerencia | null;
+  onClose: () => void;
+  onAprobar: () => void;
+  onRechazar: () => void;
+  loading?: boolean;
+}) {
+  if (!sugerencia) return null;
+  const s = sugerencia;
+  return (
+    <div className="fixed inset-0 z-40">
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={onClose}
+        aria-hidden
+      />
+      <aside className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl p-5 overflow-y-auto">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-lg font-semibold">{s.nombre}</h3>
+          <button
+            onClick={onClose}
+            className="px-3 py-1 rounded border hover:bg-gray-50"
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <div className="mt-3 text-sm text-gray-600">
+          <div className="font-medium text-gray-800">Dirección</div>
+          <div>
+            {s.direccion}
+            {s.localidad ? `, ${s.localidad}` : ""}
+            {s.ciudad ? `, ${s.ciudad}` : ""}
+            {s.provincia ? `, ${s.provincia}` : ""}
+            {s.codigoPostal ? ` (${s.codigoPostal})` : ""}
+            {s.pais ? ` — ${s.pais}` : ""}
+          </div>
+        </div>
+
+        {s.descripcion && (
+          <div className="mt-4">
+            <div className="font-medium text-gray-800">Descripción</div>
+            <p className="text-gray-700">{s.descripcion}</p>
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <div className="font-medium text-gray-800">Contacto</div>
+            <div>{s.nombreContacto}</div>
+            {s.emailContacto && (
+              <a
+                className="text-blue-600 hover:underline"
+                href={`mailto:${s.emailContacto}`}
+              >
+                {s.emailContacto}
+              </a>
+            )}
+          </div>
+          <div>
+            <div className="font-medium text-gray-800">Fechas / Estado</div>
+            <div>
+              Estado: <EstadoBadge e={s.estado} />
+            </div>
+            <div>
+              Creada: {s.creadaEn ? new Date(s.creadaEn).toLocaleString() : "-"}
+            </div>
+            <div>
+              Procesada:{" "}
+              {s.procesadaEn ? new Date(s.procesadaEn).toLocaleString() : "-"}
+            </div>
+          </div>
+        </div>
+
+        {s.comentarios && (
+          <div className="mt-4">
+            <div className="font-medium text-gray-800">Comentarios</div>
+            <p className="text-gray-700 whitespace-pre-wrap">{s.comentarios}</p>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="font-medium text-gray-800 mb-2">Banderas</div>
+          <Flags s={s} />
+        </div>
+
+        <div className="mt-6 flex gap-2">
+          <button
+            onClick={onAprobar}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg border border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            Aprobar
+          </button>
+          <button
+            onClick={onRechazar}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+          >
+            Rechazar
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+export default function SugerenciasPage() {
+  const [tab, setTab] = useState<Estado>("PENDIENTE");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [active, setActive] = useState<Sugerencia | null>(null);
+
+  const qc = useQueryClient();
+
+  const q = useQuery<SugerenciasResponse>({
+    queryKey: ["sugs", tab, page, pageSize],
+    queryFn: () => getSugerencias({ estado: tab, page, pageSize }),
+    // v5: sustituto de keepPreviousData
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
+  });
+
+  const mPatch = useMutation({
+    mutationFn: (vars: { id: number; estado: Estado }) =>
+      updateSugerenciaEstado(vars.id, vars.estado),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sugs"] }),
+  });
+
+  const mAprobar = useMutation({
+    mutationFn: (id: number) => aprobarSugerencia(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sugs"] }),
+  });
+
+  const total = q.data?.meta?.total ?? 0;
+  const pages = useMemo(
+    () => Math.max(1, Math.ceil(total / pageSize)),
+    [total]
+  );
+
+  const items: Sugerencia[] = q.data?.data ?? [];
+
+  return (
+    <div className="max-w-6xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold">Sugerencias</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => {
+              setTab(t.key);
+              setPage(1);
+              setActive(null);
+            }}
+            className={`px-4 py-2 rounded-full border ${
+              tab === t.key
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-800 hover:bg-gray-50"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tabla */}
+      <div className="rounded-2xl border bg-white overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="px-4 py-3 text-left">Nombre</th>
+              <th className="px-4 py-3 text-left">Dirección</th>
+              <th className="px-4 py-3 text-left">Estado</th>
+              <th className="px-4 py-3 text-left">Creada</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {q.isLoading ? (
+              <tr>
+                <td className="px-4 py-6" colSpan={5}>
+                  Cargando…
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td className="px-4 py-6 text-gray-500" colSpan={5}>
+                  No hay sugerencias.
+                </td>
+              </tr>
+            ) : (
+              items.map((s: Sugerencia) => (
+                <tr key={s.id} className="border-t">
+                  <td className="px-4 py-3">{s.nombre}</td>
+                  <td className="px-4 py-3">
+                    {s.direccion}
+                    {s.localidad ? `, ${s.localidad}` : ""}
+                    {s.ciudad ? `, ${s.ciudad}` : ""}
+                  </td>
+                  <td className="px-4 py-3">
+                    <EstadoBadge e={s.estado} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {s.creadaEn ? new Date(s.creadaEn).toLocaleString() : "-"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setActive(s)}
+                        className="px-3 py-1.5 rounded-lg border bg-white hover:bg-gray-50"
+                      >
+                        Ver detalle
+                      </button>
+                      {tab === "PENDIENTE" && (
+                        <>
+                          <button
+                            onClick={() => mAprobar.mutate(s.id)}
+                            className="px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                            disabled={mAprobar.isPending}
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={() =>
+                              mPatch.mutate({ id: s.id, estado: "RECHAZADA" })
+                            }
+                            className="px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                            disabled={mPatch.isPending}
+                          >
+                            Rechazar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Paginación */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1 || q.isLoading}
+          className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-60"
+        >
+          Anterior
+        </button>
+        <div className="text-sm text-gray-600">
+          Página {page} de {pages} • Total {total}
+        </div>
+        <button
+          onClick={() => setPage((p) => Math.min(pages, p + 1))}
+          disabled={page >= pages || q.isLoading}
+          className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-60"
+        >
+          Siguiente
+        </button>
+      </div>
+
+      {/* Panel detalle */}
+      <DetailPanel
+        sugerencia={active}
+        onClose={() => setActive(null)}
+        onAprobar={() => active && mAprobar.mutate(active.id)}
+        onRechazar={() =>
+          active && mPatch.mutate({ id: active.id, estado: "RECHAZADA" })
+        }
+        loading={mAprobar.isPending || mPatch.isPending}
+      />
+    </div>
+  );
+}

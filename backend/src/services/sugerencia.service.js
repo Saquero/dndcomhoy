@@ -1,116 +1,102 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+﻿// src/services/sugerencia.service.js
+const prisma = require("../prisma");
 const slugify = require("slugify");
 
-/**
- * Crear una nueva sugerencia
- * @param {Object} data
- * @returns {Promise<Object>}
- */
+const VALID_ESTADOS = ["PENDIENTE", "APROBADA", "RECHAZADA", "DUPLICADA"];
+
+// slugify util local
+function makeSlug(nombre) {
+  try {
+    return slugify(nombre, { lower: true, strict: true });
+  } catch {
+    return nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  }
+}
+
+// Crear sugerencia nueva
 exports.crearSugerencia = async (data) => {
-  try {
-    const slug = slugify(data.nombre, { lower: true, strict: true });
-
-    return await prisma.sugerencia.create({
-      data: {
-        nombre: data.nombre,
-        direccion: data.direccion,
-        descripcion: data.descripcion,
-        localidad: data.localidad,
-        ciudad: data.ciudad,
-        provincia: data.provincia,
-        nombreContacto: data.nombreContacto,
-        emailContacto: data.emailContacto || null,
-        comentarios: data.comentarios || null,
-
-        zonaAmplia: data.zonaAmplia || false,
-        parqueCercano: data.parqueCercano || false,
-        zonaInfantil: data.zonaInfantil || false,
-        tronaDisponible: data.tronaDisponible || false,
-        cambiadorDisponible: data.cambiadorDisponible || false,
-        sitioParaCarrito: data.sitioParaCarrito || false,
-        terrazaSegura: data.terrazaSegura || false,
-        actividadesParaNinos: data.actividadesParaNinos || false,
-        menuInfantil: data.menuInfantil || false,
-        aptoVegetariano: data.aptoVegetariano || false,
-        aptoVegano: data.aptoVegano || false,
-        sinPantallas: data.sinPantallas || false,
-        ambienteFamiliar: data.ambienteFamiliar || false,
-        accesibleConCarrito: data.accesibleConCarrito || false,
-
-        slug,
-      },
-    });
-  } catch (error) {
-    throw new Error("Error creando sugerencia: " + error.message);
-  }
+  const slug = makeSlug(data.nombre) + "-" + Date.now();
+  return prisma.sugerencia.create({
+    data: { ...data, slug },
+  });
 };
 
-/**
- * Obtener todas las sugerencias ordenadas por fecha de creación (desc)
- * @returns {Promise<Array>}
- */
-exports.obtenerSugerencias = async () => {
-  try {
-    return await prisma.sugerencia.findMany({
+// Listar con paginacion y filtros
+exports.obtenerTodos = async ({ page = 1, pageSize = 20, estado, search } = {}) => {
+  const p    = Math.max(1, Number(page));
+  const size = Math.min(100, Math.max(1, Number(pageSize)));
+  const skip = (p - 1) * size;
+
+  const AND = [];
+
+  if (estado && VALID_ESTADOS.includes(estado.toUpperCase())) {
+    AND.push({ estado: estado.toUpperCase() });
+  }
+
+  if (search && search.trim()) {
+    AND.push({
+      OR: [
+        { nombre:   { contains: search, mode: "insensitive" } },
+        { ciudad:   { contains: search, mode: "insensitive" } },
+        { nombreContacto: { contains: search, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  const where = AND.length > 0 ? { AND } : {};
+
+  const [items, total] = await Promise.all([
+    prisma.sugerencia.findMany({
+      where,
       orderBy: { creadaEn: "desc" },
-    });
-  } catch (error) {
-    throw new Error("Error obteniendo sugerencias: " + error.message);
-  }
+      skip,
+      take: size,
+    }),
+    prisma.sugerencia.count({ where }),
+  ]);
+
+  return {
+    data: items,
+    meta: {
+      total,
+      page: p,
+      pageSize: size,
+      pages: Math.max(1, Math.ceil(total / size)),
+    },
+  };
 };
 
-/**
- * Obtener sugerencia por ID
- * @param {number|string} id
- * @returns {Promise<Object>}
- */
+// Obtener por id
 exports.obtenerPorId = async (id) => {
-  try {
-    return await prisma.sugerencia.findUnique({
-      where: { id: Number(id) },
-    });
-  } catch (error) {
-    throw new Error("Error obteniendo sugerencia por ID: " + error.message);
-  }
+  return prisma.sugerencia.findUnique({ where: { id: parseInt(id, 10) } });
 };
 
-/**
- * Actualizar sugerencia por ID
- * @param {number|string} id
- * @param {Object} data
- * @returns {Promise<Object>}
- */
+// Actualizar campos (patch libre)
 exports.actualizarSugerencia = async (id, data) => {
-  try {
-    const actualizaSlug =
-      data.nombre && typeof data.nombre === "string"
-        ? slugify(data.nombre, { lower: true, strict: true })
-        : undefined;
-
-    return await prisma.sugerencia.update({
-      where: { id: Number(id) },
-      data: {
-        ...data,
-        slug: actualizaSlug || undefined,
-      },
-    });
-  } catch (error) {
-    throw new Error("Error actualizando sugerencia: " + error.message);
-  }
+  return prisma.sugerencia.update({
+    where: { id: parseInt(id, 10) },
+    data,
+  });
 };
 
-/**
- * Eliminar sugerencia por ID
- * @param {number|string} id
- * @returns {Promise<Object>}
- */
-exports.eliminar = async (id) => {
-  try {
-    return await prisma.sugerencia.delete({
-      where: { id: Number(id) },
-    });
-  } catch (error) {
-    throw new Error("Error eliminando sugerencia: " + error.message);
-  }
+// Cambiar estado â€” acepta datos extra (motivoRechazo, procesadaEn, etc)
+exports.actualizarEstado = async (id, estado, extraData = {}) => {
+  const estadoUpper = String(estado).toUpperCase();
+  if (!VALID_ESTADOS.includes(estadoUpper)) return null;
+
+  const updateData = {
+    estado: estadoUpper,
+    procesadaEn: new Date(),
+    ...extraData,
+  };
+
+  return prisma.sugerencia.update({
+    where: { id: parseInt(id, 10) },
+    data: updateData,
+  });
+};
+
+// Eliminar
+exports.eliminarSugerencia = async (id) => {
+  return prisma.sugerencia.delete({ where: { id: parseInt(id, 10) } });
 };

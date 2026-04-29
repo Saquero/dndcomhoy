@@ -3,160 +3,239 @@
   <img src="https://github.com/user-attachments/assets/c89eacd5-1e18-46f0-9055-301d140383dc" alt="Banner Dónde Comemos Hoy" width="100%" />
 </p>
 
-<h1 align="center">🧺Dónde Comemos Hoy – Backend API para recomendaciones familiares 🍽️👶🌳</h1>
+<h1 align="center">🧺🍽️ Dónde Comemos Hoy 👶🌳</h1>
 
-¡Hola! Bienvenido al backend de **Dónde Comemos Hoy**, una API pensada para ayudar a familias con hijos a encontrar restaurantes tranquilos, accesibles y adaptados para niños pequeños.
 
-Este repositorio contiene una **API REST** construida con tecnologías modernas y pensada para integrarse fácilmente en aplicaciones web o móviles.
-
----
-
-## 🚀 ¿Qué hace esta API?
-
-Esta API permite:
-
-- 📍 Buscar restaurantes según filtros familiares (zona amplia, parque cercano, tronas, cambiador, sin pantallas, menú infantil, etc.).
-- 📝 Recibir sugerencias públicas de nuevos restaurantes.
-- 🛡️ Gestionar sug3erencias desde un panel de administración (en desarrollo).
-- 🔐 Proteger rutas con autenticación JWT.
-- 📚 Documentar automáticamente la API con Swagger.
-
-Además, su arquitectura es **reutilizable** como base para otros proyectos similares:
-
-- Plataformas de catálogos geolocalizados
-- Sistemas de sugerencias
-- Dashboards administrativos, etc.
+<h1 align="center"> No te comas más la cabeza. Encuentra sitios donde tus hijos disfruten… y tú también </h1>
 
 ---
 
-## 🛠️ Tecnologías principales
+## 👨‍👩‍👧‍👦 ¿Qué es Dónde Comemos Hoy?
 
-- **Node.js** + **Express**
-- **Prisma ORM** + **PostgreSQL**
-- **JWT** para autenticación
-- **Swagger ** para documentación
-- **Helmet** y **CORS** para seguridad
-- **bcrypt** para cifrado de contraseñas
-- **Winston** para logging profesional
+Dónde Comemos Hoy es un producto pensado para familias con niños.
+
+No es otro buscador de restaurantes.
+
+Es una herramienta diseñada para ayudarte a encontrar sitios donde:
+- Los niños estén cómodos
+- Los padres puedan relajarse
+- Salir a comer deje de ser un problema
 
 ---
 
-## 📦 Instalación y puesta en marcha
+## 🚀 ¿Por qué existe?
 
-### 1. Clonar el repositorio
+Porque salir a comer con niños muchas veces es:
 
-git clone <URL-del-repo>
+❌ Estrés  
+❌ Improvisación  
+❌ Lugares no adaptados  
+
+Este proyecto nace para cambiar eso.
+
+---
+## ❤️ Cómo nació Dónde Comemos Hoy
+
+Este proyecto no nació de una idea de negocio.
+
+Nació de una situación real.
+
+Como padre de tres hijos, he vivido muchas veces lo mismo:
+llegar a un restaurante con ilusión… y encontrarme con:
+
+🚫 Sin tronas  
+🚫 Sin espacio para el carrito  
+🚫 Sin opciones para niños  
+
+Esa frustración repetida hizo que surgiera una pregunta:
+
+💡 ¿Y si existiera una herramienta que te dijera, antes de ir, si un sitio es realmente “family friendly”?
+
+Así nació **Dónde Comemos Hoy**.
+
+Una aplicación pensada para evitar esos momentos y convertir salir a comer en algo sencillo, cómodo y disfrutable para toda la familia.
+
+No es solo tecnología.
+
+Es una solución a un problema real que viven muchas familias cada día.
+
+---
+
+## ❤️ Mentalidad de producto
+
+Este proyecto no es un CRUD ni una demo técnica.
+
+Está diseñado como un producto real:
+- Pensado para familias reales  
+- Enfocado en experiencia de usuario  
+- Con decisiones de UX y microcopy intencionadas  
+- Evolucionado como si tuviera usuarios reales  
+
+---
+
+## 🧩 Funcionalidades principales
+
+### 👀 Exploración de restaurantes
+- Filtros orientados a familias  
+- Resultados útiles y realistas  
+- Mapa integrado  
+
+---
+
+### ❤️ Sistema de favoritos
+- Guardado de restaurantes  
+- Ranking dinámico basado en usuarios  
+- Base para recomendaciones reales  
+
+---
+
+### ✍️ Sistema de sugerencias
+- Cualquier usuario puede sugerir restaurantes  
+- Moderación real desde el dashboard  
+- Aprobación / rechazo con feedback  
+- Flujo pensado como producto, no como demo  
+
+---
+
+## 🛠️ Panel de administración
+
+Dashboard completo para gestión real:
+
+- Crear, editar y eliminar restaurantes  
+- Revisar sugerencias  
+- Aprobar o rechazar con motivo  
+- Control total del contenido  
+
+---
+
+## 🧠 Arquitectura
+
+Proyecto estructurado como producto escalable:
+
+
+dondecomemoshoy/
+├── backend/ → API REST (Node + Prisma)
+├── dashboard/ → Panel admin (React)
+├── public/ → App pública (React)
+
+
+Separación clara de responsabilidades.
+
+---
+
+## ⚙️ Tecnologías
+
+### Backend
+- Node.js
+- Express
+- Prisma ORM
+- PostgreSQL
+- JWT Authentication
+- Swagger (OpenAPI)
+- Winston (logging)
+
+### Frontend
+- React
+- TypeScript
+- Tailwind CSS
+- Vite
+
+### DevOps
+- Docker
+- Git
+- Railway
+
+---
+
+## 🎯 Características clave
+
+- API estructurada y documentada  
+- Arquitectura limpia y modular  
+- UX pensada para familias  
+- Sistema de sugerencias moderado  
+- Ranking dinámico por usuarios  
+- Geolocalización y mapas  
+- Proyecto en evolución continua  
+
+---
+
+## 📸 Screenshots
+
+### 🏠 Exploración de restaurantes
+![Home](./assets/home.png)
+
+### 📍 Detalle del restaurante
+![Detalle](./assets/detalle.png)
+
+### ✍️ Sugerir restaurante
+![Sugerir](./assets/sugerir.png)
+
+### ⚙️ Panel de administración
+![Dashboard](./assets/dashboard.png)
+
+---
+
+## 💡 Filosofía
+
+Este proyecto no nace para ser un “demo”.
+
+Nace para resolver un problema real.
+
+> Salir a comer con niños debería ser fácil.
+
+---
+
+## 💼 Valor como proyecto
+
+Este proyecto demuestra:
+
+- Desarrollo full stack real  
+- Pensamiento de producto  
+- Arquitectura escalable  
+- UX orientada a usuario  
+- Capacidad de llevar una idea a un producto funcional  
+
+---
+
+## 📦 Backend – Instalación
+
+```bash
 cd backend
-
-### 2. Instalar dependencias
-
 npm install
-
-### 3. Configurar variables de entorno
-
-Copia el archivo .env.example a .env y rellena con tus datos:
-
-DATABASE_URL=postgresql://usuario:password@localhost:5432/tu_base_de_datos
-JWT_SECRET=tu_clave_secreta_para_jwt
+Variables de entorno
+DATABASE_URL=postgresql://usuario:password@localhost:5432/db
+JWT_SECRET=tu_clave
 PORT=3000
-
-### 4. Aplicar migraciones de Prisma
-
+Migraciones
 npx prisma migrate dev --name init
-Esto generará las tablas necesarias en la base de datos.
-
-### 5. Levantar el servidor en modo desarrollo
-
+Ejecutar
 npm run dev
-Accede a la API en:
+
+API:
 http://localhost:3000
 
-### 📄Documentación Swagger
+Swagger:
+http://localhost:3000/api/docs
 
-Puedes explorar y probar todos los endpoints desde:
-🔗 http://localhost:3000/api/docs
 
-### 🔐 Autenticación para rutas protegidas
+🚀 Estado del proyecto
 
-Realiza un login con:
-pgsql
-POST /api/admin/login
-Content-Type: application/json
+✔ MVP funcional
+✔ Backend + Dashboard + Front público
+✔ En evolución continua
 
-{
-"email": "admin@example.com",
-"password": "tu_contraseña"
-}
-Copia el token JWT recibido.
+⭐ ¿Te ha gustado?
 
-En Postman (o similar), ve a la pestaña “Authorization”, elige “Bearer Token” e introduce el token.
+Si este proyecto te ha aportado valor:
 
-Ya puedes acceder a rutas protegidas (POST, PUT, DELETE, etc.).
+👉 Dale una estrella ⭐
+👉 Úsalo como base
+👉 O contacta conmigo para colaborar
 
-### 📬 Ejemplos de endpoints
-
-Obtener todos los restaurantes (público)
-GET /api/restaurantes
-
-Crear un restaurante (admin)
-
-POST /api/restaurantes
-Headers:
-Authorization: Bearer <tu-token>
-Content-Type: application/json
-Body ejemplo:
-
-{
-"nombre": "Restaurante Ejemplo",
-"direccion": "Calle Falsa 123",
-"descripcion": "Un lugar genial",
-"zonaAmplia": true,
-"parqueCercano": false,
-"tronaDisponible": true,
-"activo": true,
-"verificado": false
-}
-Actualizar restaurante (admin)
-
-PUT /api/restaurantes/{id}
-
-Eliminar restaurante (admin)
-
-DELETE /api/restaurantes/{id}
-
-### 💡 ¿Por qué usar este backend?
-
-Este backend no es solo funcional, también demuestra buenas prácticas de desarrollo profesional:
-
-Arquitectura limpia y modular.
-
-Seguridad desde el diseño.
-
-Preparado para escalar y adaptarse a nuevas apps.
-
-Documentado y fácil de mantener.
-
-### 🔁 Puedes reutilizarlo como base para:
-
-Apps para gestión de locales/sugerencias.
-
-Plataformas de recomendaciones moderadas.
-
-Dashboards administrativos.
-
-Cualquier sistema con Node.js + JWT + Prisma.
-
-⭐ ¿Te ha sido útil?
-
-Si te ha parecido útil este proyecto, dale una estrella ⭐ al repo.
-También puedes clonarlo, adaptarlo a tus ideas y mencionarme si te sirvió de ayuda.
-¡Gracias por visitar Dónde Comemos Hoy! 🙌
-
----
 
 📘 Licencia
 
-MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+MIT © 2026 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
 
 ---
 
@@ -164,7 +243,7 @@ MIT © 2025 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-
 
 💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
 
-🧠 DevOps + Backend Developer | Apasionado por crear productos útiles
+🧠 Software Developer | Apasionado por crear productos útiles
 
 📩 ¿Quieres colaborar o contratarme? ¡Estoy abierto a nuevas oportunidades profesionales y colaboraciones con impacto!
 

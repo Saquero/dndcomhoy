@@ -235,13 +235,13 @@ Si este proyecto te ha aportado valor:
 
 📘 Licencia
 
-MIT © 2026 [**Manu Saquero**](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+MIT © 2026 [**Manu Saquero**](https://www.linkedin.com/in/manusaquero/)
 
 ---
 
 📬 Contacto
 
-💼 Proyecto creado por [Manu Saquero](https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/)
+💼 Proyecto creado por [**Manu Saquero**](https://www.linkedin.com/in/manusaquero/)
 
 🧠 Software Developer | Apasionado por crear productos útiles
 

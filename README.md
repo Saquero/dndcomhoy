@@ -152,52 +152,62 @@ Separación clara y escalable.
 ![Dashboard](./assets/Dashboard.png)
 
 ---
-
 ## 📦 Instalación Backend
 
 ### 1. Clonar repo
 
 ```bash
 git clone https://github.com/Saquero/dndcomhoy.git
-cd backend
+cd dndcomhoy/backend
 npm install
-2. Variables de entorno
+```
+
+### 2. Variables de entorno
+
+```env
 DATABASE_URL=postgresql://usuario:password@localhost:5432/db
 JWT_SECRET=tu_clave
 PORT=3000
-3. Migraciones
+```
+
+### 3. Migraciones
+
+```bash
 npx prisma migrate dev --name init
-4. Ejecutar
+```
+
+### 4. Ejecutar
+
+```bash
 npm run dev
+```
+
 🌐 Endpoints
 API → http://localhost:3000
 Swagger → http://localhost:3000/api/docs
 🚀 Estado del proyecto
 
-✔ MVP funcional
-✔ Backend + Dashboard + Front público
-✔ Evolución activa
+---
+
+✔ MVP funcional  
+✔ Backend + Dashboard + Front público  
+✔ Evolución activa  
+
+---
 
 ⭐ ¿Te ha gustado?
 
 Si este proyecto te aporta valor:
 
-👉 Dale una estrella
-👉 Úsalo como base
-👉 Conecta conmigo
+👉 Dale una estrella  
+👉 Úsalo como base  
+👉 Conecta conmigo  
 
-<hr>
+---
 
-<h2>📬 Contacto</h2>
+## 📬 Contacto
 
-<p>
-💼 Proyecto creado por 👉
-<a href="https://www.linkedin.com/in/manusaquero/" target="_blank">
-  <b>Manu Saquero</b>
-</a>
-</p>
+💼 Proyecto creado por 👉 [**Manu Saquero**](https://www.linkedin.com/in/manusaquero/)  
 
-<p>
-🧠 Software Developer <br/>
+🧠 Software Developer  
 🚀 Apasionado por crear productos reales
-</p>

@@ -191,9 +191,9 @@ Si este proyecto te aporta valor:
 <h2>📬 Contacto</h2>
 
 <p>
-💼 Proyecto creado por 👉 
-<a href="https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/">
-<b>Manu Saquero</b>
+💼 Proyecto creado por 👉
+<a href="https://www.linkedin.com/in/manusaquero/" target="_blank">
+  <b>Manu Saquero</b>
 </a>
 </p>
 

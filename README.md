@@ -210,13 +210,15 @@ Migraciones
 npx prisma migrate dev --name init
 Ejecutar
 npm run dev
+API
 
-API:
 http://localhost:3000
 
-Swagger:
+Swagger
+
 http://localhost:3000/api/docs
 
+---
 
 🚀 Estado del proyecto
 
@@ -232,7 +234,7 @@ Si este proyecto te ha aportado valor:
 👉 Úsalo como base
 👉 O contacta conmigo para colaborar
 
-
+---
 📘 Licencia
 
 MIT © 2026 [**Manu Saquero**](https://www.linkedin.com/in/manusaquero/)

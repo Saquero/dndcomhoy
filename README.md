@@ -149,7 +149,7 @@ Separación clara y escalable.
 ![Sugerir](./assets/sugerir.png)
 
 ### ⚙️ Dashboard
-![Dashboard](./assets/dashboard.png)
+![Dashboard](./assets/Dashboard.png)
 
 ---
 
@@ -186,15 +186,18 @@ Si este proyecto te aporta valor:
 👉 Úsalo como base
 👉 Conecta conmigo
 
-📬 Contacto
+<hr>
 
-💼 Proyecto creado por 👉 👉 <a href="https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/"><b>Manu Saquero</b></a>
+<h2>📬 Contacto</h2>
 
-🧠 Software Developer
-🚀 Apasionado por construir productos reales
+<p>
+💼 Proyecto creado por 👉 
+<a href="https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/">
+<b>Manu Saquero</b>
+</a>
+</p>
 
-📩 Abierto a oportunidades y colaboraciones
-
-📘 Licencia
-
-MIT © 2026 👉👉 <a href="https://www.linkedin.com/in/manuel-mart%C3%ADnez-saquero-a0a90011b/"><b>Manu Saquero</b></a>
+<p>
+🧠 Software Developer <br/>
+🚀 Apasionado por crear productos reales
+</p>

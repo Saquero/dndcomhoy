@@ -26,11 +26,18 @@ export default function SiteHeader() {
             <p className="text-[10px] text-stone-400 hidden sm:block">Para familias con ninos</p>
           </div>
         </Link>
+
         <nav className="flex items-center gap-1">
-          <Link to="/" className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${active("/") ? "text-orange-600 bg-orange-50" : "text-slate-500 hover:text-slate-800 hover:bg-stone-100"}`}>
+          <Link to="/"
+            className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+              active("/") ? "text-orange-600 bg-orange-50" : "text-slate-500 hover:text-slate-800 hover:bg-stone-100"
+            }`}>
             Restaurantes
           </Link>
-          <Link to="/mis-favoritos" className={`relative text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${active("/mis-favoritos") ? "text-orange-600 bg-orange-50" : "text-slate-500 hover:text-slate-800 hover:bg-stone-100"}`}>
+          <Link to="/mis-favoritos"
+            className={`relative text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+              active("/mis-favoritos") ? "text-orange-600 bg-orange-50" : "text-slate-500 hover:text-slate-800 hover:bg-stone-100"
+            }`}>
             Favoritos
             {favCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
@@ -38,7 +45,10 @@ export default function SiteHeader() {
               </span>
             )}
           </Link>
-          <Link to="/sugerir" className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${active("/sugerir") ? "text-orange-600 bg-orange-50" : "text-slate-500 hover:text-slate-800 hover:bg-stone-100"}`}>
+          <Link to="/sugerir"
+            className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+              active("/sugerir") ? "text-orange-600 bg-orange-50" : "text-slate-500 hover:text-slate-800 hover:bg-stone-100"
+            }`}>
             Sugerir
           </Link>
         </nav>

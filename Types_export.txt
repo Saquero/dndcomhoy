@@ -1,4 +1,4 @@
-export interface Restaurante {
+﻿export interface Restaurante {
   id: number;
   nombre: string;
   slug: string;
@@ -33,6 +33,7 @@ export interface Restaurante {
   activo: boolean;
   verificado: boolean;
   vistas: number;
+  favoritos: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +54,7 @@ export interface FiltrosRestaurante {
   localidad?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
   zonaAmplia?: boolean;
   parqueCercano?: boolean;
   zonaInfantil?: boolean;

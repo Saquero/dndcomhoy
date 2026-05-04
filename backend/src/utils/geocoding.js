@@ -3,7 +3,7 @@ const logger = require("../logger");
 
 const cache = new Map();
 
-function build(parts) {
+function buildFromAddress(parts) {
   const { direccion, localidad, ciudad, provincia, codigoPostal, pais } = parts;
   return [
     direccion,
@@ -11,43 +11,84 @@ function build(parts) {
     ciudad,
     provincia,
     codigoPostal,
-    pais || "España",
+    pais || "Espana",
   ]
     .filter(Boolean)
     .join(", ");
 }
 
 /**
- * Devuelve { lat, lon } o null. Hasta 4 intentos con formatos distintos.
+ * Devuelve { lat, lon } o null.
+ * Intentos en orden:
+ *   1. Nombre + ciudad + provincia  (busqueda por nombre del local)
+ *   2. Nombre + direccion + ciudad  (nombre + calle)
+ *   3. Direccion completa           (comportamiento anterior)
+ *   4. Direccion sin localidad      (fallback)
+ *   5. Solo codigo postal + ciudad  (ultimo recurso)
  */
 async function geocodeAddress(params) {
-  const basePais = params.pais || "España";
-  const q1 = build(params);
-  const q2 = build({
-    direccion: params.direccion,
-    localidad: params.localidad || params.ciudad,
-    provincia: params.provincia,
-    codigoPostal: params.codigoPostal,
-    pais: basePais,
-  });
-  const q3 = [
-    params.direccion,
-    `${params.codigoPostal || ""} ${params.ciudad || params.localidad || ""}`,
-    basePais,
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const q4 = [params.ciudad || params.localidad, params.provincia, basePais]
-    .filter(Boolean)
-    .join(", ");
+  const basePais = params.pais || "Espana";
 
-  const queries = [q1, q2, q3, q4].filter(Boolean);
+  const queries = [
+    // 1. Nombre del restaurante + ciudad (el mas fiable en la practica)
+    params.nombre
+      ? [
+          params.nombre,
+          params.ciudad || params.localidad,
+          params.provincia,
+          basePais,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : null,
 
-  for (const q of queries) {
-    if (cache.has(q)) return cache.get(q);
+    // 2. Nombre + direccion exacta
+    params.nombre
+      ? [
+          params.nombre,
+          params.direccion,
+          params.ciudad || params.localidad,
+          basePais,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : null,
+
+    // 3. Direccion completa (comportamiento original)
+    buildFromAddress(params),
+
+    // 4. Sin localidad duplicada
+    buildFromAddress({
+      direccion: params.direccion,
+      localidad: params.localidad || params.ciudad,
+      provincia: params.provincia,
+      codigoPostal: params.codigoPostal,
+      pais: basePais,
+    }),
+
+    // 5. Solo CP + ciudad (ultimo recurso para ubicacion aproximada)
+    [
+      params.codigoPostal,
+      params.ciudad || params.localidad,
+      params.provincia,
+      basePais,
+    ]
+      .filter(Boolean)
+      .join(", "),
+  ].filter(Boolean);
+
+  // Eliminar duplicados manteniendo orden
+  const uniqueQueries = [...new Set(queries)];
+
+  for (const q of uniqueQueries) {
+    if (cache.has(q)) {
+      const cached = cache.get(q);
+      if (cached) return cached;
+      continue;
+    }
 
     try {
-      logger.info(`🌍 Geocoding: "${q}"`);
+      logger.info(`Geocoding: "${q}"`);
       const { data } = await axios.get(
         "https://nominatim.openstreetmap.org/search",
         {
@@ -60,7 +101,7 @@ async function geocodeAddress(params) {
           },
           headers: { "User-Agent": "DondeComemosHoy/1.0 (geocoding)" },
           timeout: 12000,
-        }
+        },
       );
 
       const first = Array.isArray(data) && data.find(Boolean);
@@ -69,17 +110,23 @@ async function geocodeAddress(params) {
         : null;
 
       cache.set(q, result);
+
       if (result) {
-        logger.info(`✅ Geocoding OK: ${result.lat}, ${result.lon}`);
+        logger.info(
+          `Geocoding OK: ${result.lat}, ${result.lon} (query: "${q}")`,
+        );
         return result;
       } else {
-        logger.warn(`⚠️ Geocoding sin resultados para: "${q}"`);
+        logger.warn(`Geocoding sin resultados para: "${q}"`);
       }
     } catch (err) {
-      logger.error(`❌ Error geocoding "${q}": %o`, err?.message || err);
+      logger.error(`Error geocoding "${q}": %o`, err?.message || err);
     }
   }
 
+  logger.warn(
+    `Geocoding fallido para todos los intentos de: ${params.nombre || params.direccion}`,
+  );
   return null;
 }
 

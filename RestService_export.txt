@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 import type { FiltrosRestaurante, Restaurante, RestaurantesResponse } from "../types";
 
 export async function getRestaurantes(filtros: FiltrosRestaurante = {}): Promise<RestaurantesResponse> {
@@ -9,6 +9,7 @@ export async function getRestaurantes(filtros: FiltrosRestaurante = {}): Promise
   if (filtros.localidad) params.localidad  = filtros.localidad;
   if (filtros.page)      params.page       = filtros.page;
   if (filtros.pageSize)  params.pageSize   = filtros.pageSize;
+  if (filtros.sortBy)    params.sortBy     = filtros.sortBy;
 
   const boolKeys: (keyof FiltrosRestaurante)[] = [
     "zonaAmplia", "parqueCercano", "zonaInfantil", "tronaDisponible",
@@ -27,5 +28,10 @@ export async function getRestaurantes(filtros: FiltrosRestaurante = {}): Promise
 
 export async function getRestauranteById(id: number): Promise<Restaurante> {
   const { data } = await api.get<Restaurante>(`/restaurantes/${id}`);
+  return data;
+}
+
+export async function postFavorito(id: number): Promise<{ id: number; favoritos: number }> {
+  const { data } = await api.post(`/restaurantes/${id}/favorito`);
   return data;
 }

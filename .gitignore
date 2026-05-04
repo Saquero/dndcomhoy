@@ -35,3 +35,13 @@ build/
 
 # 🧪 Cobertura de tests 
 coverage/
+
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Keep examples
+!.env.example
+!**/.env.example

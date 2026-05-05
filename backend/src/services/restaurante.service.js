@@ -1,4 +1,48 @@
-ï»¿// src/services/restaurante.service.js
+function expandQuery(q) {
+  if (!q) return [];
+
+  const base = q.toLowerCase().split(" ");
+
+  const groups = [
+    ["marisco", "pescado", "paella", "arroces"],
+    ["paella", "arroz", "arroces"],
+    ["italiano", "pizza", "pasta"],
+    ["hamburguesa", "burger"],
+    ["carne", "parrilla"],
+    ["familiar", "niños", "infantil"],
+    ["terraza", "exterior"],
+    ["parque", "zona verde"],
+    ["vegano", "vegetariano"]
+  ];
+
+  const result = new Set();
+
+  for (const word of base) {
+    result.add(word);
+
+    for (const group of groups) {
+      if (group.includes(word)) {
+        group.forEach(w => result.add(w));
+      }
+    }
+  }
+
+  return Array.from(result);
+};
+
+  const result = new Set();
+
+  for (const word of base) {
+    result.add(word);
+
+    if (synonyms[word]) {
+      synonyms[word].forEach(s => result.add(s));
+    }
+  }
+
+  return Array.from(result);
+}
+// src/services/restaurante.service.js
 const prisma = require("../prisma");
 const slugify = require("slugify");
 
@@ -101,3 +145,6 @@ exports.obtenerFiltrados = async (opts = {}) => {
 
   return { items, total, page, pageSize };
 };
+
+
+

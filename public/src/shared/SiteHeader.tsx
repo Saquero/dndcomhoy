@@ -20,7 +20,7 @@ export default function SiteHeader() {
           <img
             src="/logo-dch-horizontal.png"
             alt="Dónde Comemos Hoy"
-            className="h-10 w-auto object-contain"
+            className="h-12 sm:h-14 w-auto object-contain"
           />
 
           {/* TEXTO (por si en móvil quieres fallback o quitarlo luego) */}

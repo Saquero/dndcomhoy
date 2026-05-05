@@ -18,7 +18,7 @@ export default function SiteHeader() {
         <Link to="/" className="flex items-center gap-3 group">
           {/* LOGO (TU PNG) */}
           <img
-            src="/logo-dch-horizontal.png"
+            src="/public/logo-dch-horizontal.png"
             alt="Dónde Comemos Hoy"
             className="h-10 w-auto object-contain"
           />

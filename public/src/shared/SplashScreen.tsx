@@ -12,9 +12,9 @@ export default function SplashScreen() {
         src="/splash-family.png"
         alt="DCH Family"
         className="w-40 sm:w-52"
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        initial={{ scale: 0.4, opacity: 0, rotate: -10 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
       />
 
       <motion.div

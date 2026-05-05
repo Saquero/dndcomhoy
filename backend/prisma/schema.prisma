@@ -23,7 +23,8 @@ model Restaurante {
   imagenes             String[]
   horario              String?  @db.VarChar(300)
   slug                 String   @unique @db.VarChar(255)
-  descripcion          String   @db.Text
+  descripcion String @db.Text
+  tags String[] @default([])
 
   latitud              Float?
   longitud             Float?
@@ -76,7 +77,8 @@ model Sugerencia {
 
   telefonoRestaurante   String?  @db.VarChar(20)
   emailRestaurante      String?  @db.VarChar(255)
-  descripcion           String   @db.Text
+  descripcion String @db.Text
+  tags String[] @default([])
 
   nombreContacto        String   @db.VarChar(100)
   emailContacto         String?  @db.VarChar(255)

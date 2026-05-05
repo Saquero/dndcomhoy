@@ -1,7 +1,8 @@
-﻿const prisma = require("../prisma");
+const prisma = require("../prisma");
 const logger = require("../logger");
 const { geocodeAddress } = require("../utils/geocoding");
 const restauranteService = require("../services/restaurante.service");
+const { generateTags } = require("../utils/tagGenerator");
 
 function slugify(text) {
   return String(text || "")
@@ -31,6 +32,14 @@ function normNumberOrDelete(obj, key) {
 async function crearRestaurante(req, res) {
   try {
     const body = { ...req.body };
+
+    if (body.descripcion !== undefined) {
+      body.tags = generateTags(body.descripcion);
+    }
+
+    if (body.descripcion) {
+      body.tags = generateTags(body.descripcion);
+    }
 
     if (!body.nombre) {
       return res.status(400).json({ error: "El campo 'nombre' es obligatorio" });
@@ -188,6 +197,14 @@ async function actualizarRestaurante(req, res) {
 
   try {
     const body = { ...req.body };
+
+    if (body.descripcion !== undefined) {
+      body.tags = generateTags(body.descripcion);
+    }
+
+    if (body.descripcion) {
+      body.tags = generateTags(body.descripcion);
+    }
     if (!body.pais) body.pais = "Espana";
 
     if (body.nombre !== undefined) {

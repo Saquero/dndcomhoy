@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+﻿import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getRestaurantes, postFavorito } from "../services/restauranteService";
@@ -200,31 +200,58 @@ function RestauranteCard({ r, distancia }: { r: Restaurante; distancia?: number 
   );
 }
 
+const HERO_PHRASES = [
+  "Hoy toca comer fuera sin improvisar.",
+  "Menos estrés, más sobremesa.",
+  "Sitios pensados para peques... y para padres.",
+  "Comer fuera también puede ser fácil.",
+];
+
 function Hero({ total }: { total: number }) {
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setPhraseIndex((current) => (current + 1) % HERO_PHRASES.length);
+    }, 3200);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-50 via-amber-50 to-stone-50 border border-orange-100 px-6 py-12 sm:py-16 mb-10">
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-50 via-amber-50 to-stone-50 border border-orange-100 px-6 py-12 sm:px-8 sm:py-16 mb-10">
       <div className="blob absolute -top-16 -right-16 w-64 h-64 bg-orange-200/25 rounded-full blur-3xl pointer-events-none" />
       <div className="blob blob-delay-2 absolute -bottom-12 -left-12 w-56 h-56 bg-amber-200/25 rounded-full blur-3xl pointer-events-none" />
+
       <div className="relative z-10 max-w-2xl">
         {total > 0 && (
-          <span className="inline-block text-xs font-semibold text-orange-600 bg-orange-100 px-3 py-1 rounded-full mb-4">
+          <span className="inline-block text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full mb-4">
             {total} restaurante{total !== 1 ? "s" : ""} verificado{total !== 1 ? "s" : ""}
           </span>
         )}
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-800 leading-tight mb-4">
-          Deja de darle vueltas: encuentra un sitio donde comer con tus peques
+
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4">
+          Salir a comer con niños ya no tiene que ser un caos
         </h1>
-        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-3 max-w-xl">
-          Restaurantes pensados para familias reales: carritos, tronas, zonas amplias, menus infantiles y esos pequenos detalles que hacen que comer fuera no sea una mision imposible.
+
+        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl">
+          Encuentra restaurantes con tronas, espacio para carritos, zonas amplias y pequeños detalles que hacen que toda la familia disfrute.
         </p>
-        <p className="text-sm text-stone-400">Busca, filtra y guarda tus favoritos para decidir mas rapido.</p>
+
+        <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-orange-100 px-4 py-2 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+          <p className="text-sm font-semibold text-slate-600">
+            {HERO_PHRASES[phraseIndex]}
+          </p>
+        </div>
       </div>
+
       <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 hidden sm:flex flex-col gap-2.5 z-10">
         {[
-          { t: "Trona disponible", cls: "float-a" },
-          { t: "Parque cerca",     cls: "float-b" },
-          { t: "Terraza segura",   cls: "float-c" },
-          { t: "Menu infantil",    cls: "float-d" },
+          { t: "Tronas sin preguntar", cls: "float-card" },
+          { t: "Carrito sin agobios", cls: "float-card-b" },
+          { t: "Peques entretenidos", cls: "float-card-c" },
+          { t: "Padres más tranquilos", cls: "float-card-d" },
         ].map(item => (
           <div key={item.t} className={`${item.cls} bg-white/90 backdrop-blur-sm border border-stone-100 shadow-md rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-semibold text-slate-700`}>
             <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
@@ -462,3 +489,4 @@ export default function PublicListPage() {
     </main>
   );
 }
+

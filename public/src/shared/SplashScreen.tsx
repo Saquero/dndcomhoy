@@ -90,7 +90,7 @@ export default function SplashScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.25, duration: 0.3 }}
         >
-          Buscando un sitio para todos...
+          Un sitio pensado para toda la familia
         </motion.p>
       </div>
     </motion.div>

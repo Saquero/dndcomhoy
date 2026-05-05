@@ -19,7 +19,7 @@ export default function App() {
     const timer = window.setTimeout(() => {
       sessionStorage.setItem("dch-splash-seen", "true");
       setShowSplash(false);
-    }, 1850);
+    }, 2800);
 
     return () => window.clearTimeout(timer);
   }, [showSplash]);

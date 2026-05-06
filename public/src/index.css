@@ -44,7 +44,7 @@
   }
 
   .brand-badge {
-    @apply rounded-full bg-orange-100 px-4 py-2 text-sm font700 text-orange-600;
+    @apply rounded-full bg-orange-100 px-4 py-2 text-sm font-bold text-orange-600;
   }
 }
 
@@ -126,3 +126,4 @@
 .float-card-d {
   animation: float 4.2s ease-in-out 1.5s infinite;
 }
+

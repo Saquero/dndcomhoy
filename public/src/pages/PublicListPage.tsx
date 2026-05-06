@@ -12,7 +12,7 @@ import { isFavorite, toggleFavorite } from "../utils/favorites";
 
 const FILTROS = [
   { key: "zonaInfantil", label: "Zona infantil" },
-  { key: "menuInfantil", label: "Menu infantil" },
+  { key: "menuInfantil", label: "Menú infantil" },
   { key: "tronaDisponible", label: "Trona disponible" },
   { key: "cambiadorDisponible", label: "Cambiador" },
   { key: "sitioParaCarrito", label: "Sitio para carrito" },
@@ -43,7 +43,7 @@ const HERO_SUBS = [
 ];
 const CHIPS_CARD = [
   { key: "zonaInfantil", label: "Zona infantil" },
-  { key: "menuInfantil", label: "Menu infantil" },
+  { key: "menuInfantil", label: "Menú infantil" },
   { key: "tronaDisponible", label: "Trona" },
   { key: "cambiadorDisponible", label: "Cambiador" },
   { key: "terrazaSegura", label: "Terraza" },
@@ -94,7 +94,7 @@ function getBadge(r: Restaurante): { label: string; cls: string } | null {
     r.ambienteFamiliar,
   ].filter(Boolean).length;
   if (r.zonaInfantil && r.menuInfantil)
-    return { label: "Ideal ninos", cls: "bg-blue-500 text-white" };
+    return { label: "Ideal niños", cls: "bg-blue-500 text-white" };
   if (n >= 7)
     return { label: "Perfecto familias", cls: "bg-purple-500 text-white" };
   return null;
@@ -220,7 +220,7 @@ function PlaceholderImg() {
         <circle cx="37" cy="18" r="3" fill="currentColor" stroke="none" />
       </svg>
       <span className="text-xs text-stone-300 font-medium tracking-wide">
-        Sin foto todavia
+        Sin foto todavía
       </span>
     </div>
   );
@@ -386,7 +386,7 @@ function RestauranteCard({
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            title="Como llegar"
+            title="Cómo llegar"
             className="flex items-center gap-1.5 px-3 py-2.5 border border-stone-200 rounded-xl text-stone-500 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50 transition-all text-xs font-medium"
           >
             <IconMap />
@@ -397,14 +397,6 @@ function RestauranteCard({
     </article>
   );
 }
-
-const HERO_PHRASES = [
-  "Hoy toca comer fuera sin improvisar.",
-  "Menos estrés, más sobremesa.",
-  "Sitios pensados para peques... y para padres.",
-  "Comer fuera también puede ser fácil.",
-];
-
 
 function FavoriteToast() {
   const [message, setMessage] = useState("");
@@ -429,7 +421,7 @@ function FavoriteToast() {
 
   return (
     <div className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-xl">
-      ?? {message}
+      ❤️ {message}
     </div>
   );
 }
@@ -565,7 +557,7 @@ export default function PublicListPage() {
       },
       () => {
         setGeoError(
-          "No pudimos obtener tu ubicacion. Comprueba los permisos del navegador.",
+          "No pudimos obtener tu ubicación. Comprueba los permisos del navegador.",
         );
         setGeoLoading(false);
       },
@@ -614,7 +606,7 @@ export default function PublicListPage() {
             setSearchInput(value);
             setSearch(value); // ?? CLAVE: sincroniza con backend
           }}
-          placeholder="Nombre, zona, descripcion..."
+          placeholder="Nombre, zona, descripción..."
           className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"
         />
         <input
@@ -635,7 +627,7 @@ export default function PublicListPage() {
         </button>
       </form>
 
-      {/* Cerca de mi */}
+      {/* Cerca de mí */}
       <div className="flex items-center gap-3 mb-5">
         <button
           onClick={handleNearMe}
@@ -650,13 +642,13 @@ export default function PublicListPage() {
           {geoLoading
             ? "Buscando..."
             : nearMe
-              ? "Cerca de mi (activo)"
-              : "Cerca de mi"}
+              ? "Cerca de mí (activo)"
+              : "Cerca de mí"}
         </button>
         {geoError && <p className="text-xs text-red-500">{geoError}</p>}
         {nearMe && userPos && (
           <p className="text-xs text-stone-400">
-            Mostrando los mas cercanos a tu ubicacion
+            Mostrando los más cercanos a tu ubicacion
           </p>
         )}
       </div>
@@ -695,13 +687,13 @@ export default function PublicListPage() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl border border-stone-100 overflow-hidden"
+              className="bg-white rounded-2xl border border-stone-100 overflow-hidden shadow-sm"
             >
-              <div className="h-48 bg-stone-100 animate-pulse" />
+              <div className="h-48 bg-gradient-to-r from-stone-100 via-orange-50 to-stone-100 animate-pulse" />
               <div className="p-4 space-y-2.5">
-                <div className="h-4 bg-stone-100 rounded animate-pulse w-3/4" />
-                <div className="h-3 bg-stone-100 rounded animate-pulse w-1/2" />
-                <div className="h-9 bg-stone-100 rounded-xl animate-pulse mt-4" />
+                <div className="h-4 bg-gradient-to-r from-stone-100 via-orange-50 to-stone-100 rounded animate-pulse w-3/4" />
+                <div className="h-3 bg-gradient-to-r from-stone-100 via-orange-50 to-stone-100 rounded animate-pulse w-1/2" />
+                <div className="h-9 bg-gradient-to-r from-stone-100 via-orange-50 to-stone-100 rounded-xl animate-pulse mt-4" />
               </div>
             </div>
           ))}
@@ -727,7 +719,7 @@ export default function PublicListPage() {
             No podemos conectar con el servidor
           </p>
           <p className="text-sm text-stone-400 mt-1">
-            Comprueba que el backend esta activo en el puerto 3000
+            Comprueba que el backend está activo en el puerto 3000
           </p>
         </div>
       )}
@@ -758,11 +750,10 @@ export default function PublicListPage() {
             <line x1="28" y1="42" x2="52" y2="42" strokeLinecap="round" />
           </svg>
           <h3 className="text-lg font-bold text-slate-700 mb-2 text-center">
-            No hemos encontrado ningun sitio con esos filtros
+            Parece que todavía no conocemos un sitio así
           </h3>
           <p className="text-stone-400 text-sm text-center max-w-xs leading-relaxed mb-6">
-            Prueba quitando alguno o buscando en otra zona. A veces el plan
-            perfecto esta a un clic menos.
+            Prueba quitando algún filtro o buscando en otra zona. Si conoces un sitio familiar, puedes ayudarnos a añadirlo.
           </p>
           <div className="flex flex-wrap gap-2 justify-center">
             <button
@@ -786,7 +777,7 @@ export default function PublicListPage() {
           <div className="flex items-center justify-between mb-5">
             <p className="text-sm text-stone-400">
               {nearMe
-                ? `${restaurantes.length} mas cercanos`
+                ? `${restaurantes.length} más cercanos`
                 : `${meta?.total ?? 0} restaurante${(meta?.total ?? 0) !== 1 ? "s" : ""}${hasFilters ? " con estos filtros" : ""}`}
             </p>
             <p className="text-xs text-stone-400">
@@ -853,12 +844,10 @@ export default function PublicListPage() {
             </svg>
           </div>
           <h2 className="font-extrabold text-slate-800 text-xl sm:text-2xl mb-3 leading-tight">
-            Conoces un restaurante que otras familias deberian descubrir?
+            ¿Conoces un restaurante que otras familias deberían descubrir?
           </h2>
           <p className="text-stone-500 text-sm sm:text-base leading-relaxed mb-6">
-            Si has estado en un sitio comodo para ir con ninos, compartelo con
-            nosotros. Lo revisaremos y, si encaja, ayudara a mas familias a
-            disfrutar sin complicarse.
+            Si has estado en un sitio cómodo para ir con niños, compártelo con nosotros. Lo revisaremos y, si encaja, ayudará a más familias a disfrutar sin complicarse.
           </p>
           <Link
             to="/sugerir"
@@ -871,6 +860,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

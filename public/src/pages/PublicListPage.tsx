@@ -312,6 +312,10 @@ function RestauranteCard({
         <p className="text-sm text-slate-500 line-clamp-2 mb-3 leading-relaxed">
           {r.descripcion}
         </p>
+        <div className={`inline-flex w-fit items-center gap-1.5 text-[11px] font-bold border px-2.5 py-1 rounded-full mb-3 ${trust.cls}`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+          {trust.label}
+        </div>
         {chips.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4">
             {chips.map((c) => (
@@ -791,5 +795,6 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 

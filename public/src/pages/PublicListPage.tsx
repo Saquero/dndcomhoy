@@ -456,11 +456,11 @@ function Hero({ total }: { total: number }) {
           </span>
         )}
 
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4 transition-all duration-500">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4">
           {HERO_TITLES[heroIndex]}
         </h1>
 
-        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl transition-all duration-500">
+        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl">
           {HERO_SUBS[heroIndex]}
         </p>
 

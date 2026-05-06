@@ -263,7 +263,7 @@ function RestauranteCard({
   };
 
   return (
-    <article className="group bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col">
+    <article className="group bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative h-48 overflow-hidden flex-shrink-0">
         {imagen ? (
           <img
@@ -295,7 +295,7 @@ function RestauranteCard({
           aria-label={
             favLocal ? "Quitar de favoritos" : "Guardar como favorito"
           }
-          className={`absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all border ${
+          className={`absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all duration-200 border active:scale-90 ${
             favLocal
               ? "bg-red-500 text-white border-red-500 scale-110"
               : "bg-white/90 text-stone-400 border-white hover:text-red-400"
@@ -391,6 +391,34 @@ const HERO_PHRASES = [
   "Comer fuera también puede ser fácil.",
 ];
 
+
+function FavoriteToast() {
+  const [message, setMessage] = useState("");
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<{ added: boolean }>;
+      setMessage(custom.detail?.added ? "Guardado en favoritos" : "Quitado de favoritos");
+      setVisible(true);
+
+      window.setTimeout(() => {
+        setVisible(false);
+      }, 1700);
+    };
+
+    window.addEventListener("dch:fav-toast", handler);
+    return () => window.removeEventListener("dch:fav-toast", handler);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-xl">
+      ❤️ {message}
+    </div>
+  );
+}
 function Hero({ total }: { total: number }) {
   const [phraseIndex, setPhraseIndex] = useState(0);
 
@@ -560,6 +588,7 @@ export default function PublicListPage() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <Hero total={meta?.total ?? 0} />
+      <FavoriteToast />
 
       {/* Buscador */}
       <form onSubmit={handleSearch} className="flex gap-2 mb-4">
@@ -828,6 +857,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

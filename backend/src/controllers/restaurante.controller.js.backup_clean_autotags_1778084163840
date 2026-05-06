@@ -15,6 +15,36 @@ function slugify(text) {
 }
 
 
+function generateTags(text = "") {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const dictionary = {
+    paella: ["paella", "arroz", "arroces"],
+    marisco: ["marisco", "pescado", "pulpo", "gamba"],
+    italiano: ["pizza", "pasta", "italiano"],
+    hamburguesa: ["hamburguesa", "burger"],
+    carne: ["parrilla", "carne", "brasa"],
+    vegano: ["vegano", "vegetariano"],
+    familiar: ["familia", "familiar", "ninos", "ni�os", "trona"],
+    terraza: ["terraza", "exterior"],
+    parque: ["parque", "zona verde"],
+    infantil: ["infantil", "juegos", "zona infantil"],
+  };
+
+  const tags = new Set();
+
+  for (const [tag, words] of Object.entries(dictionary)) {
+    if (words.some((word) => normalized.includes(word))) {
+      tags.add(tag);
+    }
+  }
+
+  return Array.from(tags);
+}
+
 function normNumberOrDelete(obj, key) {
   if (obj[key] === "" || obj[key] === null || obj[key] === undefined) {
     delete obj[key];
@@ -33,6 +63,15 @@ function normNumberOrDelete(obj, key) {
 async function crearRestaurante(req, res) {
   try {
     const body = { ...req.body };
+
+    if (body.descripcion !== undefined) {
+      body.tags = generateTags(body.descripcion);
+    }
+
+    if (body.descripcion) {
+      body.tags = generateTags(body.descripcion);
+    }
+
     if (!body.nombre) {
       return res.status(400).json({ error: "El campo 'nombre' es obligatorio" });
     }
@@ -46,6 +85,7 @@ async function crearRestaurante(req, res) {
 body.tags = generateTags(
   `${body.nombre || ""} ${body.descripcion || ""}`
 );
+
     normNumberOrDelete(body, "latitud");
     normNumberOrDelete(body, "longitud");
 
@@ -193,6 +233,14 @@ async function actualizarRestaurante(req, res) {
 
   try {
     const body = { ...req.body };
+
+    if (body.descripcion !== undefined) {
+      body.tags = generateTags(body.descripcion);
+    }
+
+    if (body.descripcion) {
+      body.tags = generateTags(body.descripcion);
+    }
     if (!body.pais) body.pais = "Espana";
 
     if (body.nombre !== undefined) {

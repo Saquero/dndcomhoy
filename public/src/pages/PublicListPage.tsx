@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+ï»¿import { useState, useCallback, useEffect, useRef } from "react";
 import {
   useQuery,
   keepPreviousData,
@@ -30,15 +30,15 @@ type FlagKey = (typeof FILTROS)[number]["key"];
 
 const HERO_TITLES = [
   "Comer fuera con peques ya no tiene que ser una aventura",
-  "Encuentra sitios donde toda la familia esté cómoda",
-  "Menos improvisar. Más disfrutar en familia.",
+  "Encuentra sitios donde toda la familia estÃ© cÃ³moda",
+  "Menos improvisar. MÃ¡s disfrutar en familia.",
   "Descubre restaurantes pensados para familias reales",
 ];
 
 const HERO_SUBS = [
-  "Tronas, carritos, terrazas seguras y pequeños detalles que cambian todo.",
-  "Filtra rápido y encuentra un sitio cómodo para todos.",
-  "Porque comer fuera con niños también puede ser fácil.",
+  "Tronas, carritos, terrazas seguras y pequeÃ±os detalles que cambian todo.",
+  "Filtra rÃ¡pido y encuentra un sitio cÃ³modo para todos.",
+  "Porque comer fuera con niÃ±os tambiÃ©n puede ser fÃ¡cil.",
   "La comunidad ayuda a descubrir lugares family-friendly de verdad.",
 ];
 const CHIPS_CARD = [
@@ -230,7 +230,7 @@ function PlaceholderImg() {
 function getFamilyReasons(r: Restaurante): string[] {
   const reasons = [
     r.zonaInfantil ? "Zona infantil" : null,
-    r.menuInfantil ? "Menú infantil" : null,
+    r.menuInfantil ? "MenÃº infantil" : null,
     r.tronaDisponible ? "Trona disponible" : null,
     r.cambiadorDisponible ? "Cambiador" : null,
     r.sitioParaCarrito ? "Espacio para carrito" : null,
@@ -352,7 +352,7 @@ function RestauranteCard({
         {reasons.length > 0 && (
           <div className="mb-3 rounded-xl bg-orange-50/70 border border-orange-100 px-3 py-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-orange-500 mb-1">
-              Por qué encaja
+              Por quÃ© encaja
             </p>
             <div className="flex flex-wrap gap-1.5">
               {reasons.map((reason) => (
@@ -400,9 +400,9 @@ function RestauranteCard({
 
 const HERO_PHRASES = [
   "Hoy toca comer fuera sin improvisar.",
-  "Menos estrés, más sobremesa.",
+  "Menos estrÃ©s, mÃ¡s sobremesa.",
   "Sitios pensados para peques... y para padres.",
-  "Comer fuera también puede ser fácil.",
+  "Comer fuera tambiÃ©n puede ser fÃ¡cil.",
 ];
 
 
@@ -439,7 +439,7 @@ function Hero({ total }: { total: number }) {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setHeroIndex((current) => (current + 1) % HERO_TITLES.length);
-    }, 6500);
+    }, 11000);
 
     return () => window.clearInterval(timer);
   }, []);
@@ -466,13 +466,13 @@ function Hero({ total }: { total: number }) {
 
         <div className="flex flex-wrap gap-2 mt-5">
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            ?? Family Friendly
+            Family Friendly
           </span>
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            ?? Zonas infantiles
+            Zonas infantiles
           </span>
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            ?? Recomendado por familias
+            Recomendado por familias
           </span>
         </div>
       </div>
@@ -482,7 +482,7 @@ function Hero({ total }: { total: number }) {
           { t: "Tronas sin preguntar", cls: "float-card" },
           { t: "Carrito sin agobios", cls: "float-card-b" },
           { t: "Peques entretenidos", cls: "float-card-c" },
-          { t: "Padres más tranquilos", cls: "float-card-d" },
+          { t: "Padres mÃ¡s tranquilos", cls: "float-card-d" },
         ].map(item => (
           <div key={item.t} className={`${item.cls} bg-white/90 backdrop-blur-sm border border-stone-100 shadow-md rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-semibold text-slate-700`}>
             <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
@@ -871,6 +871,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

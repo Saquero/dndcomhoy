@@ -434,14 +434,22 @@ function FavoriteToast() {
   );
 }
 function Hero({ total }: { total: number }) {
-  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [titleIndex, setTitleIndex] = useState(0);
+  const [subIndex, setSubIndex] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setPhraseIndex((current) => (current + 1) % HERO_PHRASES.length);
+    const titleTimer = window.setInterval(() => {
+      setTitleIndex((current) => (current + 1) % HERO_TITLES.length);
+    }, 4200);
+
+    const subTimer = window.setInterval(() => {
+      setSubIndex((current) => (current + 1) % HERO_SUBS.length);
     }, 3200);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(titleTimer);
+      window.clearInterval(subTimer);
+    };
   }, []);
 
   return (
@@ -452,25 +460,28 @@ function Hero({ total }: { total: number }) {
       <div className="relative z-10 max-w-2xl">
         {total > 0 && (
           <span className="inline-block text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full mb-4">
-            {total} restaurante{total !== 1 ? "s" : ""} verificado
-            {total !== 1 ? "s" : ""}
+            {total} restaurante{total !== 1 ? "s" : ""} verificado{total !== 1 ? "s" : ""}
           </span>
         )}
 
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4">
-          Salir a comer con niños ya no tiene que ser un caos
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4 transition-all duration-500">
+          {HERO_TITLES[titleIndex]}
         </h1>
 
-        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl">
-          Encuentra restaurantes con tronas, espacio para carritos, zonas
-          amplias y pequeños detalles que hacen que toda la familia disfrute.
+        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl transition-all duration-500">
+          {HERO_SUBS[subIndex]}
         </p>
 
-        <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-orange-100 px-4 py-2 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-          <p className="text-sm font-semibold text-slate-600">
-            {HERO_PHRASES[phraseIndex]}
-          </p>
+        <div className="flex flex-wrap gap-2 mt-5">
+          <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+            👶 Family Friendly
+          </span>
+          <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+            🛝 Zonas infantiles
+          </span>
+          <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+            ❤️ Recomendado por familias
+          </span>
         </div>
       </div>
 
@@ -480,11 +491,8 @@ function Hero({ total }: { total: number }) {
           { t: "Carrito sin agobios", cls: "float-card-b" },
           { t: "Peques entretenidos", cls: "float-card-c" },
           { t: "Padres más tranquilos", cls: "float-card-d" },
-        ].map((item) => (
-          <div
-            key={item.t}
-            className={`${item.cls} bg-white/90 backdrop-blur-sm border border-stone-100 shadow-md rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-semibold text-slate-700`}
-          >
+        ].map(item => (
+          <div key={item.t} className={`${item.cls} bg-white/90 backdrop-blur-sm border border-stone-100 shadow-md rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-semibold text-slate-700`}>
             <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
             {item.t}
           </div>
@@ -871,6 +879,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

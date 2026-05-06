@@ -206,6 +206,18 @@ async function actualizarRestaurante(req, res) {
       body.imagenes = [];
     }
 
+    // AUTOTAGS_UPDATE
+    if (body.nombre !== undefined || body.descripcion !== undefined) {
+      const actual = await prisma.restaurante.findUnique({
+        where: { id: parseInt(id, 10) },
+        select: { nombre: true, descripcion: true },
+      });
+
+      body.tags = generateTags(
+        `${body.nombre ?? actual?.nombre ?? ""} ${body.descripcion ?? actual?.descripcion ?? ""}`
+      );
+    }
+
     normNumberOrDelete(body, "latitud");
     normNumberOrDelete(body, "longitud");
 

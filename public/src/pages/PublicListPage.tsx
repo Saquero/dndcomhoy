@@ -466,13 +466,13 @@ function Hero({ total }: { total: number }) {
 
         <div className="flex flex-wrap gap-2 mt-5">
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            Family Friendly
+            👶 Family Friendly
           </span>
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            Zonas infantiles
+            🛝 Zonas infantiles
           </span>
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            Recomendado por familias
+            ❤️ Recomendado por familias
           </span>
         </div>
       </div>
@@ -871,6 +871,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

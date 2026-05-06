@@ -27,6 +27,20 @@ const FILTROS = [
 
 type FlagKey = (typeof FILTROS)[number]["key"];
 
+
+const HERO_TITLES = [
+  "Comer fuera con peques ya no tiene que ser una aventura",
+  "Encuentra sitios donde toda la familia esté cómoda",
+  "Menos improvisar. Más disfrutar en familia.",
+  "Descubre restaurantes pensados para familias reales",
+];
+
+const HERO_SUBS = [
+  "Tronas, carritos, terrazas seguras y pequeños detalles que cambian todo.",
+  "Filtra rápido y encuentra un sitio cómodo para todos.",
+  "Porque comer fuera con niños también puede ser fácil.",
+  "La comunidad ayuda a descubrir lugares family-friendly de verdad.",
+];
 const CHIPS_CARD = [
   { key: "zonaInfantil", label: "Zona infantil" },
   { key: "menuInfantil", label: "Menu infantil" },
@@ -857,6 +871,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

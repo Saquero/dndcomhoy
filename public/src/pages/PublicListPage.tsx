@@ -36,6 +36,28 @@ const CHIPS_CARD = [
   { key: "parqueCercano", label: "Parque" },
 ] as const;
 
+
+function getFamilyTrust(r: Restaurante): { label: string; cls: string } {
+  const score = [
+    r.zonaInfantil,
+    r.menuInfantil,
+    r.tronaDisponible,
+    r.cambiadorDisponible,
+    r.sitioParaCarrito,
+    r.terrazaSegura,
+    r.parqueCercano,
+    r.actividadesParaNinos,
+    r.zonaAmplia,
+    r.accesibleConCarrito,
+    r.ambienteFamiliar,
+  ].filter(Boolean).length;
+
+  if (score >= 7) return { label: "Ideal para familias", cls: "bg-emerald-50 text-emerald-700 border-emerald-100" };
+  if (score >= 4) return { label: "Muy familiar", cls: "bg-orange-50 text-orange-700 border-orange-100" };
+  if (score >= 1) return { label: "Detalles familiares", cls: "bg-amber-50 text-amber-700 border-amber-100" };
+
+  return { label: "Pendiente de verificar", cls: "bg-stone-50 text-stone-500 border-stone-100" };
+}
 function getBadge(r: Restaurante): { label: string; cls: string } | null {
   const f = r.favoritos ?? 0;
   if (f >= 50) return { label: "Top de la zona", cls: "bg-red-500 text-white" };
@@ -205,6 +227,7 @@ function RestauranteCard({
       ? `https://www.google.com/maps?q=${r.latitud},${r.longitud}`
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.nombre + " " + r.ciudad)}`;
   const badge = getBadge(r);
+  const trust = getFamilyTrust(r);
   const chips = CHIPS_CARD.filter((c) => r[c.key as keyof typeof r] === true);
 
   const mutation = useMutation({
@@ -506,7 +529,11 @@ export default function PublicListPage() {
         <input
           type="text"
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSearchInput(value);
+            setSearch(value); // 🔥 CLAVE: sincroniza con backend
+          }}
           placeholder="Nombre, zona, descripcion..."
           className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"
         />

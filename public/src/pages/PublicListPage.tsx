@@ -357,7 +357,7 @@ function RestauranteCard({
             <div className="flex flex-wrap gap-1.5">
               {reasons.map((reason) => (
                 <span key={reason} className="text-[11px] font-semibold text-slate-600">
-                  ? {reason}
+                  <span className="text-orange-500 font-black">✓</span> {reason}
                 </span>
               ))}
             </div>
@@ -871,6 +871,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

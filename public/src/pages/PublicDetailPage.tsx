@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRestauranteById, postFavorito } from "../services/restauranteService";
@@ -22,6 +22,42 @@ const CARACTERISTICAS = [
   { key: "aptoVegano",           label: "Opciones veganas" },
 ] as const;
 
+
+function getFamilyPlan(r: any): string[] {
+  const plan = [
+    r.tronaDisponible ? "Trona lista para los peques" : null,
+    r.sitioParaCarrito ? "Carrito sin agobios" : null,
+    r.terrazaSegura ? "Terraza más tranquila" : null,
+    r.parqueCercano ? "Parque cerca para después" : null,
+    r.zonaInfantil ? "Zona infantil para entretenerse" : null,
+    r.menuInfantil ? "Menú infantil disponible" : null,
+    r.zonaAmplia ? "Espacio amplio para moverse" : null,
+    r.accesibleConCarrito ? "Acceso cómodo con carrito" : null,
+  ].filter(Boolean) as string[];
+
+  return plan.slice(0, 4);
+}
+
+function getTrustSummary(r: any): string {
+  const score = [
+    r.zonaInfantil,
+    r.menuInfantil,
+    r.tronaDisponible,
+    r.cambiadorDisponible,
+    r.sitioParaCarrito,
+    r.terrazaSegura,
+    r.parqueCercano,
+    r.actividadesParaNinos,
+    r.zonaAmplia,
+    r.accesibleConCarrito,
+    r.ambienteFamiliar,
+  ].filter(Boolean).length;
+
+  if (score >= 7) return "Muy preparado para familias";
+  if (score >= 4) return "Buena opción familiar";
+  if (score >= 1) return "Tiene detalles útiles para ir con peques";
+  return "Nuevo para la comunidad";
+}
 function IconHeart({ filled }: { filled: boolean }) {
   return filled ? (
     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -99,7 +135,7 @@ function ShareButton({ nombre }: { nombre: string }) {
     const url = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({ title: nombre + " - Donde Comemos Hoy", url });
+        await navigator.share({ title: nombre + " - Dónde Comemos Hoy", url });
       } catch { /* cancelado */ }
     } else {
       await navigator.clipboard.writeText(url);
@@ -144,16 +180,16 @@ function CorrectionForm({ restauranteNombre, restauranteId }: { restauranteNombr
         onClick={() => setOpen(true)}
         className="text-xs text-stone-400 hover:text-orange-500 transition-colors underline underline-offset-2"
       >
-        Algo ha cambiado o hay un error? Sugerir correccion
+        Algo ha cambiado o hay un error? Sugerir corrección
       </button>
     );
   }
 
   return (
     <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 mt-2">
-      <h3 className="font-semibold text-slate-700 mb-1 text-sm">Sugerir una correccion</h3>
+      <h3 className="font-semibold text-slate-700 mb-1 text-sm">Sugerir una corrección</h3>
       <p className="text-xs text-stone-400 mb-4">
-        Cuentanos que ha cambiado o que esta mal. Lo revisaremos lo antes posible.
+        Cuéntanos qué ha cambiado o que esta mal. Lo revisaremos lo antes posible.
       </p>
       {enviado ? (
         <div className="text-center py-4">
@@ -181,7 +217,7 @@ function CorrectionForm({ restauranteNombre, restauranteId }: { restauranteNombr
               disabled={!texto.trim() || mutation.isPending}
               className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold py-2 rounded-xl text-sm transition-colors"
             >
-              {mutation.isPending ? "Enviando..." : "Enviar correccion"}
+              {mutation.isPending ? "Enviando..." : "Enviar corrección"}
             </button>
             <button
               onClick={() => setOpen(false)}
@@ -210,7 +246,7 @@ export default function PublicDetailPage() {
 
   // SEO dinamico
   if (r) {
-    document.title = `${r.nombre} - Donde Comemos Hoy`;
+    document.title = `${r.nombre} - Dónde Comemos Hoy`;
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) { metaDesc = document.createElement("meta"); metaDesc.setAttribute("name", "description"); document.head.appendChild(metaDesc); }
     metaDesc.setAttribute("content", `${r.nombre} en ${r.ciudad}. ${r.descripcion.substring(0, 120)}...`);
@@ -253,6 +289,8 @@ export default function PublicDetailPage() {
 
   const chips = CARACTERISTICAS.filter(c => r[c.key as keyof typeof r] === true);
   const tieneInfo = r.horario || r.telefonoRestaurante || r.emailRestaurante || r.sitioWeb;
+  const familyPlan = getFamilyPlan(r);
+  const trustSummary = getTrustSummary(r);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -275,7 +313,7 @@ export default function PublicDetailPage() {
               <circle cx="24" cy="26" r="7" strokeLinecap="round" />
               <circle cx="37" cy="18" r="3" fill="currentColor" stroke="none" />
             </svg>
-            <span className="text-sm text-stone-300 font-medium">Sin foto todavia</span>
+            <span className="text-sm text-stone-300 font-medium">Sin foto todavía</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
@@ -306,17 +344,49 @@ export default function PublicDetailPage() {
           </div>
         </div>
         {(r.favoritos ?? 0) > 0 && (
-          <p className="text-sm text-orange-500 font-medium mt-2">
-            {r.favoritos} {r.favoritos === 1 ? "familia lo ha guardado" : "familias lo han guardado"}
+          <p className="text-sm text-orange-500 font-semibold mt-2">
+            ❤️ {r.favoritos} {r.favoritos === 1 ? "familia lo ha guardado" : "familias lo han guardado"}
           </p>
         )}
       </div>
 
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-orange-500 mb-1">Confianza familiar DCH</p>
+          <p className="text-sm font-bold text-slate-700">{trustSummary}</p>
+        </div>
+        <div className="bg-white border border-stone-100 rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-stone-400 mb-1">Para decidir rápido</p>
+          <p className="text-sm font-bold text-slate-700">Información pensada para familias</p>
+        </div>
+        <div className="bg-white border border-stone-100 rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-stone-400 mb-1">Comunidad</p>
+          <p className="text-sm font-bold text-slate-700">{(r.favoritos ?? 0) > 0 ? "Guardado por familias" : "Nuevo descubrimiento"}</p>
+        </div>
+      </section>
+
       <p className="text-slate-600 leading-relaxed mb-6 text-base">{r.descripcion}</p>
+
+      {familyPlan.length > 0 && (
+        <section className="mb-6 bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-5">
+          <h2 className="font-extrabold text-slate-800 text-base mb-2">Plan familiar rápido</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Lo más útil de este sitio para ir con niños, visto de un vistazo.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {familyPlan.map((item) => (
+              <div key={item} className="flex items-center gap-2 bg-white/80 border border-orange-100 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600">
+                <IconCheck />
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {chips.length > 0 && (
         <section className="mb-6">
-          <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-3">Por que es ideal para familias</h2>
+          <h2 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-3">Por qué es ideal para familias</h2>
           <div className="flex flex-wrap gap-2">
             {chips.map(c => (
               <span key={c.key} className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 text-sm font-medium px-3 py-1.5 rounded-full border border-orange-100">
@@ -363,11 +433,11 @@ export default function PublicDetailPage() {
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
           className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors">
           <IconMapBtn />
-          Como llegar
+          Cómo llegar
         </a>
         <Link to="/"
           className="flex-1 text-center border border-stone-200 hover:border-orange-300 text-slate-600 hover:text-orange-600 font-semibold py-3 rounded-xl transition-colors bg-white">
-          Ver mas restaurantes
+          Ver más restaurantes
         </Link>
       </div>
 
@@ -375,3 +445,4 @@ export default function PublicDetailPage() {
     </main>
   );
 }
+

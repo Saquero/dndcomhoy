@@ -56,7 +56,7 @@ function getFamilyTrust(r: Restaurante): { label: string; cls: string } {
   if (score >= 4) return { label: "Muy familiar", cls: "bg-orange-50 text-orange-700 border-orange-100" };
   if (score >= 1) return { label: "Detalles familiares", cls: "bg-amber-50 text-amber-700 border-amber-100" };
 
-  return { label: "Pendiente de verificar", cls: "bg-stone-50 text-stone-500 border-stone-100" };
+  return { label: "Nuevo para la comunidad", cls: "bg-stone-50 text-stone-500 border-stone-100" };
 }
 function getBadge(r: Restaurante): { label: string; cls: string } | null {
   const f = r.favoritos ?? 0;
@@ -212,6 +212,23 @@ function PlaceholderImg() {
   );
 }
 
+
+function getFamilyReasons(r: Restaurante): string[] {
+  const reasons = [
+    r.zonaInfantil ? "Zona infantil" : null,
+    r.menuInfantil ? "Menú infantil" : null,
+    r.tronaDisponible ? "Trona disponible" : null,
+    r.cambiadorDisponible ? "Cambiador" : null,
+    r.sitioParaCarrito ? "Espacio para carrito" : null,
+    r.terrazaSegura ? "Terraza segura" : null,
+    r.parqueCercano ? "Parque cerca" : null,
+    r.actividadesParaNinos ? "Actividades para peques" : null,
+    r.zonaAmplia ? "Espacio amplio" : null,
+    r.accesibleConCarrito ? "Accesible con carrito" : null,
+  ].filter(Boolean) as string[];
+
+  return reasons.slice(0, 3);
+}
 function RestauranteCard({
   r,
   distancia,
@@ -229,6 +246,7 @@ function RestauranteCard({
   const badge = getBadge(r);
   const trust = getFamilyTrust(r);
   const chips = CHIPS_CARD.filter((c) => r[c.key as keyof typeof r] === true);
+  const reasons = getFamilyReasons(r);
 
   const mutation = useMutation({
     mutationFn: () => postFavorito(r.id),
@@ -316,6 +334,21 @@ function RestauranteCard({
           <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
           {trust.label}
         </div>
+
+        {reasons.length > 0 && (
+          <div className="mb-3 rounded-xl bg-orange-50/70 border border-orange-100 px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-orange-500 mb-1">
+              Por qué encaja
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {reasons.map((reason) => (
+                <span key={reason} className="text-[11px] font-semibold text-slate-600">
+                  ✓ {reason}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {chips.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4">
             {chips.map((c) => (
@@ -795,6 +828,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

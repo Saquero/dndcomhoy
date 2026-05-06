@@ -434,22 +434,14 @@ function FavoriteToast() {
   );
 }
 function Hero({ total }: { total: number }) {
-  const [titleIndex, setTitleIndex] = useState(0);
-  const [subIndex, setSubIndex] = useState(0);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   useEffect(() => {
-    const titleTimer = window.setInterval(() => {
-      setTitleIndex((current) => (current + 1) % HERO_TITLES.length);
+    const timer = window.setInterval(() => {
+      setHeroIndex((current) => (current + 1) % HERO_TITLES.length);
     }, 4200);
 
-    const subTimer = window.setInterval(() => {
-      setSubIndex((current) => (current + 1) % HERO_SUBS.length);
-    }, 3200);
-
-    return () => {
-      window.clearInterval(titleTimer);
-      window.clearInterval(subTimer);
-    };
+    return () => window.clearInterval(timer);
   }, []);
 
   return (
@@ -465,11 +457,11 @@ function Hero({ total }: { total: number }) {
         )}
 
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4 transition-all duration-500">
-          {HERO_TITLES[titleIndex]}
+          {HERO_TITLES[heroIndex]}
         </h1>
 
         <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl transition-all duration-500">
-          {HERO_SUBS[subIndex]}
+          {HERO_SUBS[heroIndex]}
         </p>
 
         <div className="flex flex-wrap gap-2 mt-5">
@@ -879,6 +871,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

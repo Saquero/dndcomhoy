@@ -1,4 +1,4 @@
-Ôªøimport { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   useQuery,
   keepPreviousData,
@@ -30,15 +30,15 @@ type FlagKey = (typeof FILTROS)[number]["key"];
 
 const HERO_TITLES = [
   "Comer fuera con peques ya no tiene que ser una aventura",
-  "Encuentra sitios donde toda la familia est√© c√≥moda",
-  "Menos improvisar. M√°s disfrutar en familia.",
+  "Encuentra sitios donde toda la familia estÈ cÛmoda",
+  "Menos improvisar. M·s disfrutar en familia.",
   "Descubre restaurantes pensados para familias reales",
 ];
 
 const HERO_SUBS = [
-  "Tronas, carritos, terrazas seguras y peque√±os detalles que cambian todo.",
-  "Filtra r√°pido y encuentra un sitio c√≥modo para todos.",
-  "Porque comer fuera con ni√±os tambi√©n puede ser f√°cil.",
+  "Tronas, carritos, terrazas seguras y pequeÒos detalles que cambian todo.",
+  "Filtra r·pido y encuentra un sitio cÛmodo para todos.",
+  "Porque comer fuera con niÒos tambiÈn puede ser f·cil.",
   "La comunidad ayuda a descubrir lugares family-friendly de verdad.",
 ];
 const CHIPS_CARD = [
@@ -230,7 +230,7 @@ function PlaceholderImg() {
 function getFamilyReasons(r: Restaurante): string[] {
   const reasons = [
     r.zonaInfantil ? "Zona infantil" : null,
-    r.menuInfantil ? "Men√∫ infantil" : null,
+    r.menuInfantil ? "Men˙ infantil" : null,
     r.tronaDisponible ? "Trona disponible" : null,
     r.cambiadorDisponible ? "Cambiador" : null,
     r.sitioParaCarrito ? "Espacio para carrito" : null,
@@ -352,12 +352,12 @@ function RestauranteCard({
         {reasons.length > 0 && (
           <div className="mb-3 rounded-xl bg-orange-50/70 border border-orange-100 px-3 py-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-orange-500 mb-1">
-              Por qu√© encaja
+              Por quÈ encaja
             </p>
             <div className="flex flex-wrap gap-1.5">
               {reasons.map((reason) => (
                 <span key={reason} className="text-[11px] font-semibold text-slate-600">
-                  ‚úì {reason}
+                  ? {reason}
                 </span>
               ))}
             </div>
@@ -400,9 +400,9 @@ function RestauranteCard({
 
 const HERO_PHRASES = [
   "Hoy toca comer fuera sin improvisar.",
-  "Menos estr√©s, m√°s sobremesa.",
+  "Menos estrÈs, m·s sobremesa.",
   "Sitios pensados para peques... y para padres.",
-  "Comer fuera tambi√©n puede ser f√°cil.",
+  "Comer fuera tambiÈn puede ser f·cil.",
 ];
 
 
@@ -429,7 +429,7 @@ function FavoriteToast() {
 
   return (
     <div className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-xl">
-      ‚ù§Ô∏è {message}
+      ?? {message}
     </div>
   );
 }
@@ -439,7 +439,7 @@ function Hero({ total }: { total: number }) {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setHeroIndex((current) => (current + 1) % HERO_TITLES.length);
-    }, 4200);
+    }, 6500);
 
     return () => window.clearInterval(timer);
   }, []);
@@ -466,13 +466,13 @@ function Hero({ total }: { total: number }) {
 
         <div className="flex flex-wrap gap-2 mt-5">
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            üë∂ Family Friendly
+            ?? Family Friendly
           </span>
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            üõù Zonas infantiles
+            ?? Zonas infantiles
           </span>
           <span className="bg-white/90 border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-            ‚ù§Ô∏è Recomendado por familias
+            ?? Recomendado por familias
           </span>
         </div>
       </div>
@@ -482,7 +482,7 @@ function Hero({ total }: { total: number }) {
           { t: "Tronas sin preguntar", cls: "float-card" },
           { t: "Carrito sin agobios", cls: "float-card-b" },
           { t: "Peques entretenidos", cls: "float-card-c" },
-          { t: "Padres m√°s tranquilos", cls: "float-card-d" },
+          { t: "Padres m·s tranquilos", cls: "float-card-d" },
         ].map(item => (
           <div key={item.t} className={`${item.cls} bg-white/90 backdrop-blur-sm border border-stone-100 shadow-md rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-semibold text-slate-700`}>
             <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
@@ -612,7 +612,7 @@ export default function PublicListPage() {
           onChange={(e) => {
             const value = e.target.value;
             setSearchInput(value);
-            setSearch(value); // üî• CLAVE: sincroniza con backend
+            setSearch(value); // ?? CLAVE: sincroniza con backend
           }}
           placeholder="Nombre, zona, descripcion..."
           className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"

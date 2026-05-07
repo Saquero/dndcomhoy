@@ -398,6 +398,85 @@ function RestauranteCard({
   );
 }
 
+
+function TopCommunitySection({ restaurantes }: { restaurantes: Restaurante[] }) {
+  const top = [...restaurantes]
+    .sort((a, b) => (b.favoritos ?? 0) - (a.favoritos ?? 0))
+    .slice(0, 3);
+
+  if (top.length === 0) return null;
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-500 mb-1">
+            Comunidad DCH
+          </p>
+
+          <h2 className="text-2xl font-extrabold text-slate-800">
+            ❤️ Las familias están guardando...
+          </h2>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {top.map((r, index) => (
+          <Link
+            key={r.id}
+            to={`/restaurante/${r.id}`}
+            className="group relative overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+          >
+            <div className="relative h-44 overflow-hidden">
+              {r.imagenes?.[0] ? (
+                <img
+                  src={r.imagenes[0]}
+                  alt={r.nombre}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <PlaceholderImg />
+              )}
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+              <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-black w-8 h-8 rounded-full flex items-center justify-center shadow">
+                #{index + 1}
+              </div>
+
+              <div className="absolute bottom-3 left-3 right-3">
+                <h3 className="text-white font-extrabold text-lg leading-tight mb-1">
+                  {r.nombre}
+                </h3>
+
+                <p className="text-white/80 text-xs">
+                  {r.localidad}, {r.ciudad}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-full">
+                  ❤️ {r.favoritos ?? 0} guardados
+                </span>
+
+                <span className="text-xs text-stone-400 font-medium">
+                  Trending
+                </span>
+              </div>
+
+              <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
+                {r.descripcion}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function FavoriteToast() {
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
@@ -595,6 +674,8 @@ export default function PublicListPage() {
     <main className="max-w-5xl mx-auto px-4 py-8">
       <Hero total={meta?.total ?? 0} />
       <FavoriteToast />
+
+      <TopCommunitySection restaurantes={restaurantes} />
 
       {/* Buscador */}
       <form onSubmit={handleSearch} className="flex gap-2 mb-4">
@@ -860,6 +941,7 @@ export default function PublicListPage() {
     </main>
   );
 }
+
 
 
 

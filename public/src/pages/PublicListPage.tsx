@@ -340,10 +340,10 @@ function RestauranteCard({
   const [favLocal, setFavLocal] = useState(() => isFavorite(r.id));
   const queryClient = useQueryClient();
   const imagen = r.imagenes?.[0];
-  const mapsUrl =
-    r.latitud && r.longitud
-      ? `https://www.google.com/maps?q=${r.latitud},${r.longitud}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.nombre + " " + r.ciudad)}`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    [r.nombre, r.direccion, r.localidad, r.ciudad, r.provincia].filter(Boolean).join(" ")
+  )}`;
+
   const badge = getBadge(r);
   const trust = getFamilyTrust(r);
   const chips = CHIPS_CARD.filter((c) => r[c.key as keyof typeof r] === true);

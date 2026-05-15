@@ -307,7 +307,7 @@ function ShareButton({ nombre }: { nombre: string }) {
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border border-stone-200 bg-white text-stone-500 hover:border-orange-200 hover:text-orange-500 transition-all"
+      className="flex items-center justify-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border border-stone-200 bg-white text-stone-500 hover:border-orange-200 hover:text-orange-500 transition-all flex-1 sm:flex-none"
     >
       <IconShare />
       {copied ? "Enlace copiado" : "Compartir"}
@@ -480,12 +480,12 @@ export default function PublicDetailPage() {
       </div>
 
       <div className="mb-5">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 leading-tight">{r.nombre}</h1>
+            <h1 className="text-3xl sm:text-3xl font-extrabold text-slate-800 leading-tight break-words">{r.nombre}</h1>
             <p className="text-stone-400 text-sm mt-1 truncate">{r.direccion}, {r.localidad}, {r.ciudad}</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
             {r.verificado && (
               <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full border border-emerald-100">
                 Verificado
@@ -494,7 +494,7 @@ export default function PublicDetailPage() {
             <ShareButton nombre={r.nombre} />
             <button
               onClick={handleFav}
-              className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border transition-all ${
+              className={`flex items-center justify-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border transition-all flex-1 sm:flex-none ${
                 favLocal ? "bg-red-50 text-red-500 border-red-200" : "bg-white text-stone-500 border-stone-200 hover:border-red-200 hover:text-red-400"
               }`}
             >

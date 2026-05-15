@@ -1225,11 +1225,6 @@ export default function PublicListPage() {
         {(geoError || (nearMe && userPos)) && (
           <div className="min-h-5">
             {geoError && <p className="text-xs text-red-500">{geoError}</p>}
-            {nearMe && userPos && (
-              <p className="text-xs text-stone-400">
-                Mostrando los restaurantes más cercanos a tu ubicación
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -1365,7 +1360,7 @@ export default function PublicListPage() {
           <div className="flex items-center justify-between mb-5">
             <p className="text-sm text-stone-400">
               {nearMe
-                ? `${restaurantes.length} más cercanos`
+                ? `${restaurantes.length} sitio${restaurantes.length !== 1 ? "s" : ""} cerca de ti`
                 : `${meta?.total ?? 0} sitio${(meta?.total ?? 0) !== 1 ? "s" : ""}${hasFilters ? " con estos filtros" : ""}`}
             </p>
             <p className="text-xs text-stone-400">

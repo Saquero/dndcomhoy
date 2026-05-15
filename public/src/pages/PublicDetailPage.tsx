@@ -443,9 +443,9 @@ export default function PublicDetailPage() {
     );
   }
 
-  const mapsUrl = r.latitud && r.longitud
-    ? `https://www.google.com/maps?q=${r.latitud},${r.longitud}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.nombre + " " + r.direccion + " " + r.ciudad)}`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    [r.nombre, r.direccion, r.localidad, r.ciudad, r.provincia].filter(Boolean).join(" ")
+  )}`;
 
   const chips = CARACTERISTICAS.filter(c => r[c.key as keyof typeof r] === true);
   const tieneInfo = r.horario || r.telefonoRestaurante || r.emailRestaurante || r.sitioWeb;

@@ -1,5 +1,4 @@
-// src/pages/RestauranteEditPage.tsx
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getRestauranteById,
@@ -7,6 +6,8 @@ import {
   regeocodeRestaurante,
   type Restaurante,
 } from "../services/restauranteService";
+
+const GOOGLE_PLACES_API_KEY = import.meta.env.VITE_GOOGLE_PLACES_KEY ?? "";
 
 const FLAG_FIELDS = [
   "zonaAmplia",
@@ -27,13 +28,61 @@ const FLAG_FIELDS = [
 
 type FlagsState = Record<(typeof FLAG_FIELDS)[number], boolean>;
 
+async function buscarFotosGooglePlaces(
+  nombre: string,
+  ciudad: string,
+  localidad: string,
+  apiKey: string
+): Promise<string[]> {
+  if (!apiKey) {
+    throw new Error("Falta VITE_GOOGLE_PLACES_KEY en dashboard/.env");
+  }
+
+  const query = [nombre, "restaurante", localidad, ciudad, "España"]
+    .filter(Boolean)
+    .join(" ");
+
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.photos",
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      languageCode: "es",
+      maxResultCount: 1,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? `Error ${res.status}`);
+  }
+
+  const data = await res.json();
+  const place = data?.places?.[0];
+
+  if (!place) {
+    throw new Error("No se encontró el restaurante en Google Places");
+  }
+
+  return (place.photos ?? []).slice(0, 5).map((p: { name: string }) =>
+    `https://places.googleapis.com/v1/${p.name}/media?key=${apiKey}&maxHeightPx=800&maxWidthPx=1200`
+  );
+}
+
 export default function RestauranteEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [buscarFotos, setBuscarFotos] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+  const [fotoMsg, setFotoMsg] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -42,7 +91,7 @@ export default function RestauranteEditPage() {
     ciudad: "",
     provincia: "",
     codigoPostal: "",
-    pais: "España",
+    pais: "Espana",
     telefonoRestaurante: "",
     emailRestaurante: "",
     sitioWeb: "",
@@ -57,13 +106,16 @@ export default function RestauranteEditPage() {
     () => Object.fromEntries(FLAG_FIELDS.map((k) => [k, false])) as FlagsState
   );
 
-  // Carga inicial
   useEffect(() => {
     let mounted = true;
-    (async () => {
+
+    async function loadRestaurante() {
       try {
         setLoading(true);
+        setError(null);
+
         const data = await getRestauranteById(id!);
+
         if (!mounted) return;
 
         setForm({
@@ -73,7 +125,7 @@ export default function RestauranteEditPage() {
           ciudad: data.ciudad || "",
           provincia: data.provincia || "",
           codigoPostal: data.codigoPostal || "",
-          pais: data.pais || "España",
+          pais: data.pais || "Espana",
           telefonoRestaurante: data.telefonoRestaurante || "",
           emailRestaurante: data.emailRestaurante || "",
           sitioWeb: data.sitioWeb || "",
@@ -88,9 +140,11 @@ export default function RestauranteEditPage() {
 
         setFlags((prev) => {
           const next = { ...prev };
-          for (const k of FLAG_FIELDS) {
-            next[k] = Boolean((data as any)[k]);
+
+          for (const key of FLAG_FIELDS) {
+            next[key] = Boolean((data as any)[key]);
           }
+
           return next;
         });
       } catch (e: any) {
@@ -98,7 +152,10 @@ export default function RestauranteEditPage() {
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    }
+
+    loadRestaurante();
+
     return () => {
       mounted = false;
     };
@@ -125,10 +182,50 @@ export default function RestauranteEditPage() {
     setFlags((s) => ({ ...s, [name]: checked }));
   };
 
+  const handleBuscarFotos = async () => {
+    if (!form.nombre.trim() || !form.ciudad.trim()) {
+      setFotoMsg("Rellena el nombre y la ciudad antes de buscar fotos.");
+      return;
+    }
+
+    setBuscarFotos(true);
+    setFotoMsg(null);
+
+    try {
+      const urls = await buscarFotosGooglePlaces(
+        form.nombre.trim(),
+        form.ciudad.trim(),
+        form.localidad.trim(),
+        GOOGLE_PLACES_API_KEY
+      );
+
+      if (urls.length === 0) {
+        setFotoMsg("No se encontraron fotos en Google Places.");
+        return;
+      }
+
+      const actuales = imagenesArray;
+      const combinadas = Array.from(new Set([...urls, ...actuales]));
+
+      setForm((s) => ({
+        ...s,
+        imagenesText: combinadas.join("\n"),
+      }));
+
+      setFotoMsg(`${urls.length} foto(s) encontrada(s). Guarda cambios para aplicarlas.`);
+    } catch (err: any) {
+      setFotoMsg(`Error: ${err.message}`);
+    } finally {
+      setBuscarFotos(false);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setSaving(true);
     setError(null);
+
     try {
       const payload: Partial<Restaurante> & Record<string, any> = {
         nombre: form.nombre.trim(),
@@ -151,22 +248,28 @@ export default function RestauranteEditPage() {
         const n = Number(form.latitud);
         if (!Number.isNaN(n)) payload.latitud = n;
       }
+
       if (form.longitud !== "") {
         const n = Number(form.longitud);
         if (!Number.isNaN(n)) payload.longitud = n;
       }
 
-      Object.keys(payload).forEach(
-        (k) => payload[k] === undefined && delete payload[k]
-      );
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === undefined) delete payload[k];
+      });
 
       await updateRestaurante(id!, payload);
+
       navigate("/restaurantes");
     } catch (e: any) {
       const status = e?.response?.status;
       const msg = e?.response?.data?.error ?? "Error al guardar cambios";
-      if (status === 409) setError("Ya existe un restaurante con ese nombre.");
-      else setError(msg);
+
+      if (status === 409) {
+        setError("Ya existe un restaurante con ese nombre.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -175,7 +278,9 @@ export default function RestauranteEditPage() {
   const onRegeo = async () => {
     try {
       await regeocodeRestaurante(id!);
+
       const data = await getRestauranteById(id!);
+
       setForm((s) => ({
         ...s,
         latitud: data.latitud != null ? String(data.latitud) : "",
@@ -186,12 +291,11 @@ export default function RestauranteEditPage() {
     }
   };
 
-  // ⬇️ Este return está DENTRO del componente (ojo a las llaves de arriba)
   if (loading) {
     return (
       <div className="p-4">
         <h1 className="text-xl font-semibold mb-2">Editar restaurante</h1>
-        <p>Cargando…</p>
+        <p>Cargando...</p>
       </div>
     );
   }
@@ -200,6 +304,7 @@ export default function RestauranteEditPage() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Editar restaurante</h1>
+
         <div className="flex gap-2">
           <button
             onClick={() => navigate(-1)}
@@ -207,6 +312,7 @@ export default function RestauranteEditPage() {
           >
             Volver
           </button>
+
           <button
             onClick={onRegeo}
             className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
@@ -222,86 +328,23 @@ export default function RestauranteEditPage() {
         onSubmit={onSubmit}
         className="rounded-2xl border bg-white p-4 shadow-sm space-y-6"
       >
-        {/* Básicos */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Nombre *"
-            name="nombre"
-            value={form.nombre}
-            onChange={onChange}
-            required
-          />
-          <Input
-            label="Dirección *"
-            name="direccion"
-            value={form.direccion}
-            onChange={onChange}
-            required
-          />
-          <Input
-            label="Localidad *"
-            name="localidad"
-            value={form.localidad}
-            onChange={onChange}
-            required
-          />
-          <Input
-            label="Ciudad *"
-            name="ciudad"
-            value={form.ciudad}
-            onChange={onChange}
-            required
-          />
-          <Input
-            label="Provincia *"
-            name="provincia"
-            value={form.provincia}
-            onChange={onChange}
-            required
-          />
-          <Input
-            label="Código postal"
-            name="codigoPostal"
-            value={form.codigoPostal}
-            onChange={onChange}
-          />
-          <Input
-            label="País"
-            name="pais"
-            value={form.pais}
-            onChange={onChange}
-          />
+          <Input label="Nombre *" name="nombre" value={form.nombre} onChange={onChange} required />
+          <Input label="Dirección *" name="direccion" value={form.direccion} onChange={onChange} required />
+          <Input label="Localidad *" name="localidad" value={form.localidad} onChange={onChange} required />
+          <Input label="Ciudad *" name="ciudad" value={form.ciudad} onChange={onChange} required />
+          <Input label="Provincia *" name="provincia" value={form.provincia} onChange={onChange} required />
+          <Input label="Código postal" name="codigoPostal" value={form.codigoPostal} onChange={onChange} />
+          <Input label="País" name="pais" value={form.pais} onChange={onChange} />
         </div>
 
-        {/* Contacto */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Teléfono"
-            name="telefonoRestaurante"
-            value={form.telefonoRestaurante}
-            onChange={onChange}
-          />
-          <Input
-            label="Email"
-            name="emailRestaurante"
-            value={form.emailRestaurante}
-            onChange={onChange}
-          />
-          <Input
-            label="Sitio web"
-            name="sitioWeb"
-            value={form.sitioWeb}
-            onChange={onChange}
-          />
-          <Input
-            label="Horario"
-            name="horario"
-            value={form.horario}
-            onChange={onChange}
-          />
+          <Input label="Teléfono" name="telefonoRestaurante" value={form.telefonoRestaurante} onChange={onChange} />
+          <Input label="Email" name="emailRestaurante" value={form.emailRestaurante} onChange={onChange} />
+          <Input label="Sitio web" name="sitioWeb" value={form.sitioWeb} onChange={onChange} />
+          <Input label="Horario" name="horario" value={form.horario} onChange={onChange} />
         </div>
 
-        {/* Descripción */}
         <label className="text-sm block">
           <span className="block text-gray-600 mb-1">Descripción *</span>
           <textarea
@@ -313,43 +356,90 @@ export default function RestauranteEditPage() {
           />
         </label>
 
-        {/* Imágenes */}
-        <label className="text-sm block">
-          <span className="block text-gray-600 mb-1">
-            Imágenes (una URL por línea)
-          </span>
-          <textarea
-            className="w-full rounded-lg border px-3 py-2 min-h-[80px]"
-            name="imagenesText"
-            value={form.imagenesText}
-            onChange={onChange}
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            {imagenesArray.length} imagen(es)
-          </div>
-        </label>
+        <section>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Imágenes
+          </h2>
 
-        {/* Coordenadas */}
+          <div className="mb-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <p className="text-sm font-medium text-blue-800 mb-1">
+              Buscar fotos automáticamente
+            </p>
+
+            <p className="text-xs text-blue-600 mb-3">
+              Usa el nombre, localidad y ciudad del restaurante para buscar fotos reales en Google Places.
+              {!GOOGLE_PLACES_API_KEY && (
+                <span className="block mt-1 text-amber-600 font-medium">
+                  Añade VITE_GOOGLE_PLACES_KEY en dashboard/.env para activar esta función.
+                </span>
+              )}
+            </p>
+
+            <button
+              type="button"
+              onClick={handleBuscarFotos}
+              disabled={buscarFotos || !GOOGLE_PLACES_API_KEY}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              {buscarFotos ? "Buscando..." : "Buscar fotos en Google Places"}
+            </button>
+
+            {fotoMsg && (
+              <p
+                className={`text-xs mt-2 ${
+                  fotoMsg.startsWith("Error") ? "text-red-600" : "text-green-600"
+                }`}
+              >
+                {fotoMsg}
+              </p>
+            )}
+          </div>
+
+          {imagenesArray.length > 0 && (
+            <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+              {imagenesArray.slice(0, 5).map((url, i) => (
+                <img
+                  key={i}
+                  src={url}
+                  alt={`Preview ${i + 1}`}
+                  className="w-24 h-24 object-cover rounded-lg border border-gray-200 flex-shrink-0"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          <label className="text-sm block">
+            <span className="block text-gray-600 mb-1">
+              Imágenes / URLs, una por línea
+            </span>
+
+            <textarea
+              className="w-full rounded-lg border px-3 py-2 min-h-[80px] font-mono text-xs"
+              name="imagenesText"
+              value={form.imagenesText}
+              onChange={onChange}
+              placeholder="https://example.com/foto1.jpg"
+            />
+
+            <span className="text-xs text-gray-500 mt-1 block">
+              {imagenesArray.length} imagen(es)
+            </span>
+          </label>
+        </section>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Latitud (opcional)"
-            name="latitud"
-            value={form.latitud}
-            onChange={onChange}
-          />
-          <Input
-            label="Longitud (opcional)"
-            name="longitud"
-            value={form.longitud}
-            onChange={onChange}
-          />
+          <Input label="Latitud" name="latitud" value={form.latitud} onChange={onChange} />
+          <Input label="Longitud" name="longitud" value={form.longitud} onChange={onChange} />
         </div>
 
-        {/* Flags */}
         <fieldset className="border rounded-xl p-3">
           <legend className="text-sm font-medium px-1">
             Características familiares
           </legend>
+
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
             {FLAG_FIELDS.map((key) => (
               <label key={key} className="flex items-center gap-2 text-sm">
@@ -372,8 +462,9 @@ export default function RestauranteEditPage() {
             disabled={saving}
             className="rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition disabled:opacity-60"
           >
-            {saving ? "Guardando…" : "Guardar cambios"}
+            {saving ? "Guardando..." : "Guardar cambios"}
           </button>
+
           <button
             type="button"
             onClick={() => navigate("/restaurantes")}
@@ -431,5 +522,6 @@ function labelFor(k: string) {
     ambienteFamiliar: "Ambiente familiar",
     accesibleConCarrito: "Accesible con carrito",
   };
+
   return map[k] || k;
 }

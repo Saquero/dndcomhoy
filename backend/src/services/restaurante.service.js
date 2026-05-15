@@ -1,35 +1,71 @@
-const prisma = require("../prisma");
+﻿const prisma = require("../prisma");
 const slugify = require("slugify");
 
 // =====================
-// SINONIMOS (IA LIGHT)
+// NORMALIZACION
+// =====================
+function normalizeText(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// =====================
+// SINONIMOS DCH
 // =====================
 function expandQuery(q) {
   if (!q) return [];
 
-  const base = q.toLowerCase().split(" ");
+  const normalizedQuery = normalizeText(q);
+  const words = normalizedQuery.split(/\s+/).filter(Boolean);
 
   const groups = [
-    ["marisco", "pescado", "paella", "arroces"],
-    ["paella", "arroz", "arroces"],
-    ["italiano", "pizza", "pasta"],
-    ["hamburguesa", "burger"],
-    ["carne", "parrilla"],
-    ["familiar", "niños", "infantil"],
-    ["terraza", "exterior"],
-    ["parque", "zona verde"],
-    ["vegano", "vegetariano"],
+    ["marisco", "pescado", "pescados", "seafood"],
+    ["paella", "arroz", "arroces", "caldero"],
+    ["italiano", "italiana", "pizza", "pasta"],
+    ["hamburguesa", "hamburguesas", "burger", "burgers"],
+    ["carne", "carnes", "brasa", "brasas", "parrilla", "asador"],
+    ["familiar", "familia", "familias", "ninos", "peques", "infantil"],
+    ["terraza", "exterior", "aire libre", "jardin", "jardines"],
+    ["parque", "zona verde", "zona infantil", "juegos infantiles"],
+    ["vegano", "vegetariano", "vegetariana"],
+    ["cafeteria", "cafe", "merienda", "merendar"],
+    ["cumpleanos", "cumple", "cumpleanos infantiles"],
+    ["ludoteca", "monitores", "talleres"],
+    ["parque de bolas", "bolas", "pelotero"],
+    ["hinchables", "hinchable", "castillo hinchable"],
+    ["trampolines", "trampolin", "camas elasticas"],
+    ["toboganes", "tobogan"],
+    ["menu infantil", "menu ninos", "menus infantiles"],
+    ["padres tranquilos", "comer tranquilos", "tomar algo mientras"],
+    ["comer mientras juegan", "mientras juegan", "mientras los ninos"],
+    ["terraza con ninos", "terraza familiar"],
+    ["ocio infantil", "animacion infantil", "actividades infantiles"],
   ];
 
   const result = new Set();
 
-  for (const word of base) {
-    result.add(word);
+  // Añadimos la query completa para tags compuestos:
+  // "padres tranquilos", "comer mientras juegan", "parque de bolas", etc.
+  result.add(normalizedQuery);
 
-    for (const group of groups) {
-      if (group.includes(word)) {
-        group.forEach((w) => result.add(w));
-      }
+  for (const word of words) {
+    result.add(word);
+  }
+
+  for (const group of groups) {
+    const groupMatches = group.some((term) => {
+      const normalizedTerm = normalizeText(term);
+      return (
+        normalizedQuery.includes(normalizedTerm) ||
+        words.includes(normalizedTerm)
+      );
+    });
+
+    if (groupMatches) {
+      group.forEach((term) => result.add(normalizeText(term)));
     }
   }
 
@@ -96,19 +132,24 @@ exports.obtenerFiltrados = async (opts = {}) => {
 
   const AND = [];
 
-  // 🔥 TEXTO INTELIGENTE (SINONIMOS)
+  // =====================
+  // TEXTO INTELIGENTE
+  // =====================
   if (isFilled(q)) {
+    const normalizedQ = normalizeText(q);
     const keywords = expandQuery(q);
 
     AND.push({
       OR: [
         { nombre: { contains: q, mode: "insensitive" } },
         { descripcion: { contains: q, mode: "insensitive" } },
+        { nombre: { contains: normalizedQ, mode: "insensitive" } },
+        { descripcion: { contains: normalizedQ, mode: "insensitive" } },
         { tags: { hasSome: keywords } },
       ],
     });
 
-    // 🔥 IGNORAR FILTROS SI HAY TEXTO
+    // Si hay búsqueda textual, no obligamos a cumplir flags.
     opts.ignoreFlags = true;
   }
 
@@ -127,7 +168,9 @@ exports.obtenerFiltrados = async (opts = {}) => {
 
   AND.push({ activo: true });
 
-  // 🔥 FILTROS (solo si no hay búsqueda)
+  // =====================
+  // FILTROS BOOLEANOS
+  // =====================
   const flags = opts.ignoreFlags ? {} : opts.flags || {};
   const flagEntries = Object.entries(flags).filter(([_, v]) => v === true);
 

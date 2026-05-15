@@ -25,6 +25,71 @@ const FILTROS = [
   { key: "aptoVegano", label: "Vegano" },
 ] as const;
 
+
+
+const MOOD_FILTERS = [
+  {
+    label: "Padres tranquilos",
+    emoji: "☕",
+    query: "padres tranquilos",
+    helper: "Sitios donde los peques se entretienen y tú respiras.",
+  },
+  {
+    label: "Comer mientras juegan",
+    emoji: "🍽️",
+    query: "comer mientras juegan",
+    helper: "Para comer sin estar levantándote cada dos minutos.",
+  },
+  {
+    label: "Cumpleaños",
+    emoji: "🎂",
+    query: "cumpleanos",
+    helper: "Opciones para celebrar con niños.",
+  },
+  {
+    label: "Ludoteca",
+    emoji: "🧸",
+    query: "ludoteca",
+    helper: "Con monitores, talleres o zona de juego interior.",
+  },
+  {
+    label: "Parque de bolas",
+    emoji: "🛝",
+    query: "parque de bolas",
+    helper: "Diversión directa para los peques.",
+  },
+  {
+    label: "Terraza con niños",
+    emoji: "🌿",
+    query: "terraza con ninos",
+    helper: "Exterior, espacio y menos agobio.",
+  },
+  {
+    label: "Paella / arroz",
+    emoji: "🥘",
+    query: "paella",
+    helper: "Plan familiar mediterráneo.",
+  },
+  {
+    label: "Merienda",
+    emoji: "🍰",
+    query: "merienda",
+    helper: "Café, helados, tartas o plan de tarde.",
+  },
+] as const;
+
+const EMOTIONAL_TAGS = [
+  { tag: "padres tranquilos", label: "Padres tranquilos", emoji: "☕" },
+  { tag: "comer mientras juegan", label: "Comer mientras juegan", emoji: "🍽️" },
+  { tag: "parque de bolas", label: "Parque de bolas", emoji: "🛝" },
+  { tag: "ludoteca", label: "Ludoteca", emoji: "🧸" },
+  { tag: "cumpleanos", label: "Cumpleaños", emoji: "🎂" },
+  { tag: "cumpleanos infantiles", label: "Cumpleaños", emoji: "🎂" },
+  { tag: "merienda", label: "Merienda", emoji: "🍰" },
+  { tag: "terraza con ninos", label: "Terraza con niños", emoji: "🌿" },
+  { tag: "menu infantil", label: "Menú infantil", emoji: "👶" },
+  { tag: "ocio infantil", label: "Ocio infantil", emoji: "🎈" },
+] as const;
 type FlagKey = (typeof FILTROS)[number]["key"];
 
 
@@ -243,6 +308,28 @@ function getFamilyReasons(r: Restaurante): string[] {
 
   return reasons.slice(0, 3);
 }
+
+function getMoodChips(r: Restaurante) {
+  const tags = Array.isArray((r as any).tags) ? ((r as any).tags as string[]) : [];
+  const normalizedTags = tags.map((tag) =>
+    String(tag)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+  );
+
+  const seen = new Set<string>();
+
+  return EMOTIONAL_TAGS.filter((item) => {
+    if (seen.has(item.label)) return false;
+
+    const found = normalizedTags.includes(item.tag);
+    if (found) seen.add(item.label);
+
+    return found;
+  }).slice(0, 3);
+}
 function RestauranteCard({
   r,
   distancia,
@@ -260,6 +347,7 @@ function RestauranteCard({
   const badge = getBadge(r);
   const trust = getFamilyTrust(r);
   const chips = CHIPS_CARD.filter((c) => r[c.key as keyof typeof r] === true);
+  const moodChips = getMoodChips(r);
   const reasons = getFamilyReasons(r);
 
   const mutation = useMutation({
@@ -278,7 +366,7 @@ function RestauranteCard({
 
   return (
     <article className="group bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col">
-      <div className="relative h-48 overflow-hidden flex-shrink-0">
+      <div className="relative h-32 sm:h-48 overflow-hidden flex-shrink-0">
         {imagen ? (
           <img
             src={imagen}
@@ -332,25 +420,25 @@ function RestauranteCard({
         )}
       </div>
 
-      <div className="p-4 flex flex-col flex-1">
+      <div className="p-3 sm:p-4 flex flex-col flex-1">
         <div className="mb-2">
-          <h2 className="font-bold text-slate-800 text-[15px] leading-snug line-clamp-1">
+          <h2 className="font-bold text-slate-800 text-[13px] sm:text-[15px] leading-snug line-clamp-1">
             {r.nombre}
           </h2>
-          <p className="text-xs text-stone-400 mt-0.5 flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs text-stone-400 mt-0.5 flex items-center gap-1">
             <IconPin /> {r.localidad}, {r.ciudad}
           </p>
         </div>
-        <p className="text-sm text-slate-500 line-clamp-2 mb-3 leading-relaxed">
+        <p className="text-[11px] sm:text-sm text-slate-500 line-clamp-2 mb-2 sm:mb-3 leading-relaxed">
           {r.descripcion}
         </p>
-        <div className={`inline-flex w-fit items-center gap-1.5 text-[11px] font-bold border px-2.5 py-1 rounded-full mb-3 ${trust.cls}`}>
+        <div className={`inline-flex w-fit items-center gap-1.5 text-[10px] sm:text-[11px] font-bold border px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full mb-2 sm:mb-3 ${trust.cls}`}>
           <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
           {trust.label}
         </div>
 
         {reasons.length > 0 && (
-          <div className="mb-3 rounded-xl bg-orange-50/70 border border-orange-100 px-3 py-2">
+          <div className="hidden sm:block mb-3 rounded-xl bg-orange-50/70 border border-orange-100 px-3 py-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-orange-500 mb-1">
               Por qué encaja
             </p>
@@ -364,7 +452,7 @@ function RestauranteCard({
           </div>
         )}
         {chips.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
+          <div className="hidden sm:flex flex-wrap gap-1.5 mb-4">
             {chips.map((c) => (
               <span
                 key={c.key}
@@ -375,10 +463,23 @@ function RestauranteCard({
             ))}
           </div>
         )}
+
+        {moodChips.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {moodChips.map((chip) => (
+              <span
+                key={`${chip.tag}-${chip.label}`}
+                className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold"
+              >
+                {chip.emoji} {chip.label}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-auto flex gap-2">
           <Link
             to={`/restaurante/${r.id}`}
-            className="flex-1 text-center bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+            className="flex-1 text-center bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-xl transition-colors"
           >
             Ver detalles
           </Link>
@@ -387,10 +488,10 @@ function RestauranteCard({
             target="_blank"
             rel="noopener noreferrer"
             title="Cómo llegar"
-            className="flex items-center gap-1.5 px-3 py-2.5 border border-stone-200 rounded-xl text-stone-500 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50 transition-all text-xs font-medium"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 border border-stone-200 rounded-xl text-stone-500 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50 transition-all text-xs font-medium"
           >
             <IconMap />
-            <span>Ir</span>
+            <span className="hidden sm:inline">Ir</span>
           </a>
         </div>
       </div>
@@ -398,6 +499,252 @@ function RestauranteCard({
   );
 }
 
+
+function MoodFiltersSection({
+  search,
+  searchInput,
+  onApply,
+  onClear,
+}: {
+  search: string;
+  searchInput: string;
+  onApply: (query: string) => void;
+  onClear: () => void;
+}) {
+  const hasSearch = Boolean(search || searchInput);
+
+  return (
+    <section className="mb-8">
+      <div className="flex items-end justify-between gap-3 mb-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-500 mb-1">
+            Planes familiares
+          </p>
+          <h2 className="text-lg sm:text-xl font-extrabold text-slate-800">
+            ¿Qué necesitas hoy?
+          </h2>
+        </div>
+
+        {hasSearch && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs text-stone-400 hover:text-red-500 font-medium transition-colors"
+          >
+            Quitar búsqueda
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {MOOD_FILTERS.map((item) => {
+          const isActive = search === item.query || searchInput === item.query;
+
+          return (
+            <button
+              key={item.query}
+              type="button"
+              onClick={() => onApply(item.query)}
+              title={item.helper}
+              className={`text-left rounded-2xl border px-3 py-3 transition-all ${
+                isActive
+                  ? "bg-orange-500 text-white border-orange-500 shadow-md scale-[1.01]"
+                  : "bg-white text-slate-700 border-stone-100 hover:border-orange-200 hover:bg-orange-50"
+              }`}
+            >
+              <span className="block text-xl mb-1">{item.emoji}</span>
+
+              <span className="block text-xs font-extrabold leading-tight">
+                {item.label}
+              </span>
+
+              <span
+                className={`hidden sm:block text-[10px] mt-1 leading-snug ${
+                  isActive ? "text-white/80" : "text-stone-400"
+                }`}
+              >
+                {item.helper}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function CompactFamilySearchControls({
+  search,
+  searchInput,
+  activeFlags,
+  hasFilters,
+  onApply,
+  onToggleFlag,
+  onClearSearch,
+  onClearAll,
+}: {
+  search: string;
+  searchInput: string;
+  activeFlags: Partial<Record<FlagKey, boolean>>;
+  hasFilters: boolean;
+  onApply: (query: string) => void;
+  onToggleFlag: (key: FlagKey) => void;
+  onClearSearch: () => void;
+  onClearAll: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const quickPlans = MOOD_FILTERS.filter((item) =>
+    ["padres tranquilos", "comer mientras juegan", "cumpleanos", "parque de bolas"].includes(item.query)
+  );
+
+  const hasSearch = Boolean(search || searchInput);
+
+  return (
+    <section className="mb-8 space-y-3">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {quickPlans.map((item) => {
+          const isActive = search === item.query || searchInput === item.query;
+
+          return (
+            <button
+              key={item.query}
+              type="button"
+              onClick={() => onApply(item.query)}
+              title={item.helper}
+              className={
+                "flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-bold transition-all " +
+                (isActive
+                  ? "bg-orange-500 text-white border-orange-500 shadow-md"
+                  : "bg-white text-slate-700 border-stone-200 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700")
+              }
+            >
+              <span className="text-base">{item.emoji}</span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className={
+            "flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-bold transition-all " +
+            (open
+              ? "bg-slate-800 text-white border-slate-800 shadow-md"
+              : "bg-white text-slate-600 border-stone-200 hover:border-slate-300 hover:bg-slate-50")
+          }
+        >
+          <span>{open ? "Cerrar filtros" : "Ver más planes y filtros"}</span>
+          <span className={"transition-transform " + (open ? "rotate-180" : "")}>⌄</span>
+        </button>
+
+        {(hasSearch || hasFilters) && (
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="flex-shrink-0 inline-flex items-center rounded-full border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-red-100 transition-all"
+          >
+            Limpiar todo
+          </button>
+        )}
+      </div>
+
+      {hasSearch && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-orange-50 border border-orange-100 px-3 py-2">
+          <p className="text-xs text-orange-700">
+            Buscando: <span className="font-bold">{search || searchInput}</span>
+          </p>
+
+          <button
+            type="button"
+            onClick={onClearSearch}
+            className="text-xs font-bold text-orange-600 hover:text-red-500"
+          >
+            Quitar búsqueda
+          </button>
+        </div>
+      )}
+
+      {open && (
+        <div className="rounded-3xl border border-stone-100 bg-white shadow-sm p-4 sm:p-5 space-y-5">
+          <div>
+            <div className="mb-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-500">
+                Planes familiares
+              </p>
+              <h3 className="text-sm font-extrabold text-slate-800">
+                Busca por situación real
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {MOOD_FILTERS.map((item) => {
+                const isActive = search === item.query || searchInput === item.query;
+
+                return (
+                  <button
+                    key={item.query}
+                    type="button"
+                    onClick={() => onApply(item.query)}
+                    title={item.helper}
+                    className={
+                      "text-left rounded-2xl border px-3 py-3 transition-all " +
+                      (isActive
+                        ? "bg-orange-500 text-white border-orange-500 shadow-md scale-[1.01]"
+                        : "bg-stone-50/70 text-slate-700 border-stone-100 hover:border-orange-200 hover:bg-orange-50")
+                    }
+                  >
+                    <span className="block text-xl mb-1">{item.emoji}</span>
+                    <span className="block text-xs font-extrabold leading-tight">
+                      {item.label}
+                    </span>
+                    <span className={"hidden sm:block text-[10px] mt-1 leading-snug " + (isActive ? "text-white/80" : "text-stone-400")}>
+                      {item.helper}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="border-t border-stone-100 pt-4">
+            <div className="mb-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                Filtros prácticos
+              </p>
+              <h3 className="text-sm font-extrabold text-slate-800">
+                Afina si necesitas algo concreto
+              </h3>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {FILTROS.map(({ key, label }) => {
+                const isOn = !!activeFlags[key];
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onToggleFlag(key)}
+                    className={
+                      "text-xs font-medium px-3 py-1.5 rounded-full border transition-all " +
+                      (isOn
+                        ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                        : "bg-white text-slate-600 border-stone-200 hover:border-orange-300 hover:text-orange-600")
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function TopCommunitySection({ restaurantes }: { restaurantes: Restaurante[] }) {
   const top = [...restaurantes]
@@ -516,7 +863,7 @@ function Hero({ total }: { total: number }) {
   }, []);
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-50 via-amber-50 to-stone-50 border border-orange-100 px-6 py-12 sm:px-8 sm:py-16 mb-10">
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-50 via-amber-50 to-stone-50 border border-orange-100 px-5 py-8 sm:px-8 sm:py-16 mb-8 sm:mb-10">
       <div className="blob absolute -top-16 -right-16 w-64 h-64 bg-orange-200/25 rounded-full blur-3xl pointer-events-none" />
       <div className="blob blob-delay-2 absolute -bottom-12 -left-12 w-56 h-56 bg-amber-200/25 rounded-full blur-3xl pointer-events-none" />
 
@@ -527,11 +874,11 @@ function Hero({ total }: { total: number }) {
           </span>
         )}
 
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-4">
+        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-slate-800 leading-tight mb-3 sm:mb-4">
           {HERO_TITLES[heroIndex]}
         </h1>
 
-        <p className="text-slate-500 text-base sm:text-lg leading-relaxed mb-4 max-w-2xl">
+        <p className="text-slate-500 text-sm sm:text-lg leading-relaxed mb-4 max-w-2xl">
           {HERO_SUBS[heroIndex]}
         </p>
 
@@ -605,6 +952,14 @@ export default function PublicListPage() {
     setPage(1);
   }, []);
 
+  const applyMoodFilter = useCallback((query: string) => {
+    setSearch(query);
+    setSearchInput(query);
+    setActiveFlags({});
+    setPage(1);
+    setNearMe(false);
+  }, []);
+
   const clearAll = () => {
     setActiveFlags({});
     setSearch("");
@@ -645,8 +1000,7 @@ export default function PublicListPage() {
 
   let restaurantes = data?.data ?? [];
   const meta = data?.meta;
-  const hasFilters =
-    Object.keys(activeFlags).length > 0 || search || ciudad || nearMe;
+  const hasFilters = Boolean(Object.keys(activeFlags).length > 0 || search || searchInput || ciudad || nearMe);
 
   // Ordenar por distancia si nearMe activo
   if (nearMe && userPos) {
@@ -675,96 +1029,92 @@ export default function PublicListPage() {
       <Hero total={meta?.total ?? 0} />
       <FavoriteToast />
 
-      <TopCommunitySection restaurantes={restaurantes} />
+      {!hasFilters && <TopCommunitySection restaurantes={restaurantes} />}
 
       {/* Buscador */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => {
-            const value = e.target.value;
-            setSearchInput(value);
-            setSearch(value); // ?? CLAVE: sincroniza con backend
-          }}
-          placeholder="Nombre, zona, descripción..."
-          className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"
-        />
-        <input
-          type="text"
-          value={ciudad}
-          onChange={(e) => {
-            setCiudad(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Ciudad"
-          className="w-28 sm:w-36 bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"
-        />
-        <button
-          type="submit"
-          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors whitespace-nowrap"
-        >
-          Buscar
-        </button>
-      </form>
+      <div className="mb-5 space-y-3">
+        <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-2">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchInput(value);
+              setSearch(value);
+            }}
+            placeholder="¿Qué plan familiar buscas hoy?"
+            className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"
+          />
 
-      {/* Cerca de mí */}
-      <div className="flex items-center gap-3 mb-5">
-        <button
-          onClick={handleNearMe}
-          disabled={geoLoading}
-          className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border transition-all ${
-            nearMe
-              ? "bg-blue-500 text-white border-blue-500"
-              : "bg-white text-slate-600 border-stone-200 hover:border-blue-300 hover:text-blue-600"
-          }`}
-        >
-          <IconLocation />
-          {geoLoading
-            ? "Buscando..."
-            : nearMe
-              ? "Cerca de mí (activo)"
-              : "Cerca de mí"}
-        </button>
-        {geoError && <p className="text-xs text-red-500">{geoError}</p>}
-        {nearMe && userPos && (
-          <p className="text-xs text-stone-400">
-            Mostrando los más cercanos a tu ubicacion
-          </p>
-        )}
-      </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={ciudad}
+              onChange={(e) => {
+                setCiudad(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Ciudad"
+              className="min-w-0 flex-1 lg:w-36 lg:flex-none bg-white border border-stone-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-stone-400"
+            />
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {FILTROS.map(({ key, label }) => {
-          const isOn = !!activeFlags[key];
-          return (
             <button
-              key={key}
-              onClick={() => toggleFlag(key)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
-                isOn
-                  ? "bg-orange-500 text-white border-orange-500 shadow-sm"
-                  : "bg-white text-slate-600 border-stone-200 hover:border-orange-300 hover:text-orange-600"
-              }`}
+              type="submit"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-xl text-sm transition-colors whitespace-nowrap"
             >
-              {label}
+              Buscar
             </button>
-          );
-        })}
-        {hasFilters && (
+          </div>
+
           <button
-            onClick={clearAll}
-            className="text-xs text-stone-400 hover:text-red-500 px-2 py-1.5 transition-colors"
+            type="button"
+            onClick={handleNearMe}
+            disabled={geoLoading}
+            className={`flex items-center justify-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl border transition-all lg:w-auto ${
+              nearMe
+                ? "bg-blue-500 text-white border-blue-500"
+                : "bg-white text-slate-600 border-stone-200 hover:border-blue-300 hover:text-blue-600"
+            }`}
           >
-            Limpiar todo
+            <IconLocation />
+            {geoLoading
+              ? "Buscando..."
+              : nearMe
+                ? "Cerca de mí"
+                : "Cerca de mí"}
           </button>
+        </form>
+
+        {(geoError || (nearMe && userPos)) && (
+          <div className="min-h-5">
+            {geoError && <p className="text-xs text-red-500">{geoError}</p>}
+            {nearMe && userPos && (
+              <p className="text-xs text-stone-400">
+                Mostrando los restaurantes más cercanos a tu ubicación
+              </p>
+            )}
+          </div>
         )}
       </div>
+
+      <CompactFamilySearchControls
+        search={search}
+        searchInput={searchInput}
+        activeFlags={activeFlags}
+        hasFilters={hasFilters}
+        onApply={applyMoodFilter}
+        onToggleFlag={toggleFlag}
+        onClearSearch={() => {
+          setSearch("");
+          setSearchInput("");
+          setPage(1);
+        }}
+        onClearAll={clearAll}
+      />
 
       {/* Loading */}
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
@@ -865,7 +1215,7 @@ export default function PublicListPage() {
               {nearMe ? "Por distancia" : "Por popularidad"}
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
             {restaurantes.map((r) => (
               <RestauranteCard
                 key={r.id}
@@ -941,6 +1291,10 @@ export default function PublicListPage() {
     </main>
   );
 }
+
+
+
+
 
 
 

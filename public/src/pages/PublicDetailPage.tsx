@@ -58,6 +58,166 @@ function getTrustSummary(r: any): string {
   if (score >= 1) return "Tiene detalles útiles para ir con peques";
   return "Nuevo para la comunidad";
 }
+
+function normalizeTag(tag: unknown) {
+  return String(tag || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getTags(r: any): string[] {
+  return Array.isArray(r.tags) ? r.tags.map(normalizeTag) : [];
+}
+
+function hasAnyTag(r: any, tags: string[]) {
+  const current = getTags(r);
+  return tags.some((tag) => current.includes(normalizeTag(tag)));
+}
+
+function getDetailInsights(r: any) {
+  const idealFor: string[] = [];
+
+  if (hasAnyTag(r, ["padres tranquilos", "comer mientras juegan"])) {
+    idealFor.push("Comer con menos agobio");
+  }
+
+  if (hasAnyTag(r, ["cumpleanos", "cumpleanos infantiles"]) || r.actividadesParaNinos) {
+    idealFor.push("Celebraciones con peques");
+  }
+
+  if (hasAnyTag(r, ["ludoteca", "parque de bolas", "ocio infantil"]) || r.zonaInfantil) {
+    idealFor.push("Niños entretenidos");
+  }
+
+  if (hasAnyTag(r, ["terraza con ninos"]) || r.terrazaSegura) {
+    idealFor.push("Plan con terraza");
+  }
+
+  if (hasAnyTag(r, ["paella", "arroz", "mediterraneo"])) {
+    idealFor.push("Comida familiar mediterránea");
+  }
+
+  if (idealFor.length === 0) {
+    idealFor.push("Salida familiar cómoda");
+  }
+
+  const parents = hasAnyTag(r, ["padres tranquilos", "comer mientras juegan"])
+    ? "Pensado para que los adultos puedan comer o tomar algo con más calma mientras los peques se entretienen."
+    : r.terrazaSegura || r.zonaAmplia || r.sitioParaCarrito
+      ? "Tiene detalles que hacen la visita más cómoda para ir en familia sin tanta improvisación."
+      : "Buen candidato para familias que buscan un sitio sencillo y cómodo.";
+
+  const kids = r.zonaInfantil || hasAnyTag(r, ["ludoteca", "parque de bolas", "ocio infantil"])
+    ? "Los peques tienen opciones para jugar o entretenerse durante la visita."
+    : r.parqueCercano
+      ? "Puede combinarse con parque cercano antes o después de comer."
+      : r.menuInfantil
+        ? "Cuenta con opciones pensadas para niños."
+        : "Puede encajar si buscas un plan tranquilo sin demasiada complicación.";
+
+  const tip = hasAnyTag(r, ["cumpleanos", "cumpleanos infantiles"])
+    ? "Si vas a celebrar un cumpleaños, llama antes para confirmar disponibilidad, horarios y condiciones."
+    : r.zonaInfantil || hasAnyTag(r, ["ludoteca", "parque de bolas"])
+      ? "Antes de ir, conviene confirmar horarios de la zona infantil o si requiere reserva."
+      : r.terrazaSegura
+        ? "Si buscas terraza, llama antes para confirmar disponibilidad según hora y clima."
+        : "Si vas en hora punta o con carrito, es buena idea llamar antes para confirmar comodidad y espacio.";
+
+  return {
+    idealFor: idealFor.slice(0, 3),
+    parents,
+    kids,
+    tip,
+  };
+}
+
+function FamilyInsightSection({ r, familyPlan }: { r: any; familyPlan: string[] }) {
+  const insights = getDetailInsights(r);
+
+  return (
+    <section className="mb-6 bg-gradient-to-br from-orange-50 via-amber-50 to-white border border-orange-100 rounded-3xl p-5 sm:p-6 shadow-sm">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-500 mb-1">
+            Plan familiar rápido
+          </p>
+          <h2 className="font-extrabold text-slate-800 text-xl leading-tight">
+            Lo importante antes de ir
+          </h2>
+        </div>
+
+        <span className="hidden sm:inline-flex bg-white border border-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+          DCH
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="bg-white/90 border border-orange-100 rounded-2xl p-4">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-orange-500 mb-2">
+            Ideal para
+          </p>
+          <div className="space-y-2">
+            {insights.idealFor.map((item) => (
+              <p key={item} className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                <IconCheck />
+                {item}
+              </p>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white/90 border border-orange-100 rounded-2xl p-4">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-orange-500 mb-2">
+            Para padres
+          </p>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            {insights.parents}
+          </p>
+        </div>
+
+        <div className="bg-white/90 border border-orange-100 rounded-2xl p-4">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-orange-500 mb-2">
+            Para peques
+          </p>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            {insights.kids}
+          </p>
+        </div>
+      </div>
+
+      {familyPlan.length > 0 && (
+        <div className="mb-4">
+          <p className="text-[11px] uppercase tracking-wide font-bold text-stone-400 mb-2">
+            Detalles útiles
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {familyPlan.map((item) => (
+              <div
+                key={item}
+                className="flex items-center gap-2 bg-white/80 border border-orange-100 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600"
+              >
+                <IconCheck />
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl bg-white border border-orange-100 px-4 py-3">
+        <p className="text-[11px] uppercase tracking-wide font-bold text-orange-500 mb-1">
+          Consejo DCH
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          {insights.tip}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function IconHeart({ filled }: { filled: boolean }) {
   return filled ? (
     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -367,22 +527,7 @@ export default function PublicDetailPage() {
 
       <p className="text-slate-600 leading-relaxed mb-6 text-base">{r.descripcion}</p>
 
-      {familyPlan.length > 0 && (
-        <section className="mb-6 bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-5">
-          <h2 className="font-extrabold text-slate-800 text-base mb-2">Plan familiar rápido</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            Lo más útil de este sitio para ir con niños, visto de un vistazo.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {familyPlan.map((item) => (
-              <div key={item} className="flex items-center gap-2 bg-white/80 border border-orange-100 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600">
-                <IconCheck />
-                {item}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <FamilyInsightSection r={r} familyPlan={familyPlan} />
 
       {chips.length > 0 && (
         <section className="mb-6">

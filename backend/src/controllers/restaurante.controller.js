@@ -84,12 +84,14 @@ async function obtenerRestaurantes(req, res) {
     const {
       q, search, ciudad, localidad,
       onlyWithCoords, soloConCoordenadas,
+      onlyWithoutPhotos, soloSinFotos,
       matchMode, sortBy, page, pageSize,
       ...rawFlags
     } = req.query;
 
     const qFinal = q ?? search;
     const onlyWithCoordsFinal = String(onlyWithCoords ?? soloConCoordenadas) === "true";
+    const onlyWithoutPhotosFinal = String(onlyWithoutPhotos ?? soloSinFotos) === "true";
 
     const FLAG_KEYS = [
       "zonaAmplia", "parqueCercano", "zonaInfantil", "tronaDisponible",
@@ -115,6 +117,7 @@ async function obtenerRestaurantes(req, res) {
       ciudad: ciudad || undefined,
       localidad: localidad || undefined,
       onlyWithCoords: onlyWithCoordsFinal,
+      onlyWithoutPhotos: onlyWithoutPhotosFinal,
       matchMode: matchMode === "any" ? "any" : "all",
       sortBy: sortByFinal,
       page: Number(page) || 1,

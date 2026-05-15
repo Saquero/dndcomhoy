@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 
 export type Restaurante = {
   id: number;
@@ -40,6 +40,7 @@ export type Restaurante = {
   activo?: boolean;
   verificado?: boolean;
   vistas?: number;
+  favoritos?: number;
 
   createdAt?: string;
   updatedAt?: string;
@@ -99,7 +100,7 @@ export async function getRestaurantes(params?: Record<string, unknown>) {
   return { data: [], meta: { total: 0, page: 1, pageSize: 10, totalPages: 1 } };
 }
 
-// 👇 GET por id (lo usa EditPage)
+// ðŸ‘‡ GET por id (lo usa EditPage)
 export async function getRestauranteById(id: number | string) {
   const { data } = await api.get<Restaurante>(`/restaurantes/${id}`);
   return data;
@@ -133,4 +134,5 @@ export async function regeocodeRestaurante(id: number | string) {
   const { data } = await api.post(`/restaurantes/${id}/regeocode`);
   return data;
 }
+
 

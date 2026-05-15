@@ -328,7 +328,7 @@ function getMoodChips(r: Restaurante) {
     if (found) seen.add(item.label);
 
     return found;
-  }).slice(0, 3);
+  }).slice(0, 2);
 }
 function RestauranteCard({
   r,
@@ -895,7 +895,7 @@ function Hero({ total }: { total: number }) {
       <div className="relative z-10 max-w-2xl">
         {total > 0 && (
           <span className="inline-block text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full mb-4">
-            {total} restaurante{total !== 1 ? "s" : ""} verificado{total !== 1 ? "s" : ""}
+            {total} sitio{total !== 1 ? "s" : ""} familiar{total !== 1 ? "es" : ""} revisado{total !== 1 ? "s" : ""}
           </span>
         )}
 
@@ -932,6 +932,117 @@ function Hero({ total }: { total: number }) {
             {item.t}
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+
+function getSearchContext(query: string, nearMe: boolean) {
+  const q = String(query || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (nearMe) {
+    return {
+      emoji: "📍",
+      title: "Sitios cerca de ti",
+      text: "Ordenamos los restaurantes por distancia para que encuentres algo cómodo sin dar mil vueltas.",
+    };
+  }
+
+  if (!q) return null;
+
+  if (q.includes("padres tranquilos")) {
+    return {
+      emoji: "☕",
+      title: "Sitios para comer con más calma",
+      text: "Lugares donde los peques pueden entretenerse y los adultos respirar un poco.",
+    };
+  }
+
+  if (q.includes("comer mientras juegan")) {
+    return {
+      emoji: "🍽️",
+      title: "Comer mientras los peques juegan",
+      text: "Opciones pensadas para que comer fuera no sea levantarse cada dos minutos.",
+    };
+  }
+
+  if (q.includes("cumple")) {
+    return {
+      emoji: "🎂",
+      title: "Ideas para cumpleaños infantiles",
+      text: "Sitios que pueden encajar para celebrar con niños sin complicarse demasiado.",
+    };
+  }
+
+  if (q.includes("parque de bolas") || q.includes("ludoteca")) {
+    return {
+      emoji: "🛝",
+      title: "Planes con juego asegurado",
+      text: "Restaurantes y espacios donde los niños tienen zona para jugar o entretenerse.",
+    };
+  }
+
+  if (q.includes("terraza")) {
+    return {
+      emoji: "🌿",
+      title: "Terrazas para ir con niños",
+      text: "Sitios con exterior o ambiente más cómodo para familias con peques.",
+    };
+  }
+
+  if (q.includes("paella") || q.includes("arroz")) {
+    return {
+      emoji: "🥘",
+      title: "Plan familiar de arroz o paella",
+      text: "Opciones mediterráneas para comer en familia sin improvisar.",
+    };
+  }
+
+  if (q.includes("merienda")) {
+    return {
+      emoji: "🍰",
+      title: "Planes de merienda",
+      text: "Cafés, meriendas o planes de tarde para ir con peques.",
+    };
+  }
+
+  return {
+    emoji: "🔎",
+    title: "Resultados para tu búsqueda",
+    text: "Hemos buscado coincidencias por nombre, descripción, ciudad y etiquetas familiares.",
+  };
+}
+
+
+function NearMeContextBanner({
+  nearMe,
+  userPos,
+}: {
+  nearMe: boolean;
+  userPos: { lat: number; lon: number } | null;
+}) {
+  if (!nearMe || !userPos) return null;
+
+  return (
+    <section className="mb-5 rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-sky-50 to-white px-4 py-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white border border-blue-100 text-xl shadow-sm">
+          📍
+        </div>
+
+        <div>
+          <h2 className="text-sm sm:text-base font-extrabold text-slate-800">
+            Sitios cerca de ti
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mt-1">
+            Ordenamos los restaurantes por distancia para que encuentres algo cómodo sin dar mil vueltas.
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -1026,6 +1137,7 @@ export default function PublicListPage() {
   let restaurantes = data?.data ?? [];
   const meta = data?.meta;
   const hasFilters = Boolean(Object.keys(activeFlags).length > 0 || search || searchInput || ciudad || nearMe);
+  const searchContext = getSearchContext(search || searchInput, nearMe);
 
   // Ordenar por distancia si nearMe activo
   if (nearMe && userPos) {
@@ -1228,13 +1340,33 @@ export default function PublicListPage() {
         </div>
       )}
 
+
+      {!nearMe && searchContext && (
+        <section className="mb-5 rounded-3xl border border-orange-100 bg-gradient-to-br from-orange-50 via-amber-50 to-white px-4 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white border border-orange-100 text-xl shadow-sm">
+              {searchContext.emoji}
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-800">
+                {searchContext.title}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mt-1">
+                {searchContext.text}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {!isLoading && !isError && restaurantes.length > 0 && (
         <>
+          <NearMeContextBanner nearMe={nearMe} userPos={userPos} />
           <div className="flex items-center justify-between mb-5">
             <p className="text-sm text-stone-400">
               {nearMe
                 ? `${restaurantes.length} más cercanos`
-                : `${meta?.total ?? 0} restaurante${(meta?.total ?? 0) !== 1 ? "s" : ""}${hasFilters ? " con estos filtros" : ""}`}
+                : `${meta?.total ?? 0} sitio${(meta?.total ?? 0) !== 1 ? "s" : ""}${hasFilters ? " con estos filtros" : ""}`}
             </p>
             <p className="text-xs text-stone-400">
               {nearMe ? "Por distancia" : "Por popularidad"}

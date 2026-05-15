@@ -122,6 +122,7 @@ exports.obtenerFiltrados = async (opts = {}) => {
   const ciudad = toStr(opts.ciudad);
   const localidad = toStr(opts.localidad);
   const onlyWithCoords = parseBool(opts.onlyWithCoords);
+  const onlyWithoutPhotos = parseBool(opts.onlyWithoutPhotos);
   const matchMode = opts.matchMode === "any" ? "any" : "all";
   const sortBy = toStr(opts.sortBy) || "favoritos_desc";
 
@@ -164,6 +165,10 @@ exports.obtenerFiltrados = async (opts = {}) => {
   if (onlyWithCoords) {
     AND.push({ latitud: { not: null } });
     AND.push({ longitud: { not: null } });
+  }
+
+  if (onlyWithoutPhotos) {
+    AND.push({ imagenes: { isEmpty: true } });
   }
 
   AND.push({ activo: true });

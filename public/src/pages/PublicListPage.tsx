@@ -573,6 +573,7 @@ function MoodFiltersSection({
   );
 }
 
+
 function CompactFamilySearchControls({
   search,
   searchInput,
@@ -592,13 +593,21 @@ function CompactFamilySearchControls({
   onClearSearch: () => void;
   onClearAll: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openPanel, setOpenPanel] = useState<"plans" | "filters" | null>(null);
 
   const quickPlans = MOOD_FILTERS.filter((item) =>
     ["padres tranquilos", "comer mientras juegan", "cumpleanos", "parque de bolas"].includes(item.query)
   );
 
+  const extraPlans = MOOD_FILTERS.filter(
+    (item) => !quickPlans.some((quick) => quick.query === item.query)
+  );
+
   const hasSearch = Boolean(search || searchInput);
+
+  const togglePanel = (panel: "plans" | "filters") => {
+    setOpenPanel((current) => (current === panel ? null : panel));
+  };
 
   return (
     <section className="mb-8 space-y-3">
@@ -624,26 +633,42 @@ function CompactFamilySearchControls({
             </button>
           );
         })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => togglePanel("plans")}
+          className={
+            "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-extrabold transition-all " +
+            (openPanel === "plans"
+              ? "bg-orange-500 text-white border-orange-500 shadow-md"
+              : "bg-white text-orange-700 border-orange-100 hover:border-orange-300 hover:bg-orange-50")
+          }
+        >
+          <span>🧡</span>
+          <span>{openPanel === "plans" ? "Cerrar planes" : "Más planes"}</span>
+        </button>
 
         <button
           type="button"
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => togglePanel("filters")}
           className={
-            "flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-bold transition-all " +
-            (open
+            "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-extrabold transition-all " +
+            (openPanel === "filters"
               ? "bg-slate-800 text-white border-slate-800 shadow-md"
               : "bg-white text-slate-600 border-stone-200 hover:border-slate-300 hover:bg-slate-50")
           }
         >
-          <span>{open ? "Cerrar filtros" : "Ver más planes y filtros"}</span>
-          <span className={"transition-transform " + (open ? "rotate-180" : "")}>⌄</span>
+          <span>⚙️</span>
+          <span>{openPanel === "filters" ? "Cerrar filtros" : "Filtros"}</span>
         </button>
 
         {(hasSearch || hasFilters) && (
           <button
             type="button"
             onClick={onClearAll}
-            className="flex-shrink-0 inline-flex items-center rounded-full border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-red-100 transition-all"
+            className="inline-flex items-center rounded-full border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-red-100 transition-all"
           >
             Limpiar todo
           </button>
@@ -666,79 +691,79 @@ function CompactFamilySearchControls({
         </div>
       )}
 
-      {open && (
-        <div className="rounded-3xl border border-stone-100 bg-white shadow-sm p-4 sm:p-5 space-y-5">
-          <div>
-            <div className="mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-500">
-                Planes familiares
-              </p>
-              <h3 className="text-sm font-extrabold text-slate-800">
-                Busca por situación real
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {MOOD_FILTERS.map((item) => {
-                const isActive = search === item.query || searchInput === item.query;
-
-                return (
-                  <button
-                    key={item.query}
-                    type="button"
-                    onClick={() => onApply(item.query)}
-                    title={item.helper}
-                    className={
-                      "text-left rounded-2xl border px-3 py-3 transition-all " +
-                      (isActive
-                        ? "bg-orange-500 text-white border-orange-500 shadow-md scale-[1.01]"
-                        : "bg-stone-50/70 text-slate-700 border-stone-100 hover:border-orange-200 hover:bg-orange-50")
-                    }
-                  >
-                    <span className="block text-xl mb-1">{item.emoji}</span>
-                    <span className="block text-xs font-extrabold leading-tight">
-                      {item.label}
-                    </span>
-                    <span className={"hidden sm:block text-[10px] mt-1 leading-snug " + (isActive ? "text-white/80" : "text-stone-400")}>
-                      {item.helper}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+      {openPanel === "plans" && (
+        <div className="rounded-3xl border border-orange-100 bg-white shadow-sm p-4 sm:p-5">
+          <div className="mb-3">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-500">
+              Planes familiares
+            </p>
+            <h3 className="text-sm font-extrabold text-slate-800">
+              Elige una situación real
+            </h3>
           </div>
 
-          <div className="border-t border-stone-100 pt-4">
-            <div className="mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                Filtros prácticos
-              </p>
-              <h3 className="text-sm font-extrabold text-slate-800">
-                Afina si necesitas algo concreto
-              </h3>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {extraPlans.map((item) => {
+              const isActive = search === item.query || searchInput === item.query;
 
-            <div className="flex flex-wrap gap-2">
-              {FILTROS.map(({ key, label }) => {
-                const isOn = !!activeFlags[key];
+              return (
+                <button
+                  key={item.query}
+                  type="button"
+                  onClick={() => onApply(item.query)}
+                  title={item.helper}
+                  className={
+                    "text-left rounded-2xl border px-3 py-3 transition-all " +
+                    (isActive
+                      ? "bg-orange-500 text-white border-orange-500 shadow-md scale-[1.01]"
+                      : "bg-stone-50/70 text-slate-700 border-stone-100 hover:border-orange-200 hover:bg-orange-50")
+                  }
+                >
+                  <span className="block text-xl mb-1">{item.emoji}</span>
+                  <span className="block text-xs font-extrabold leading-tight">
+                    {item.label}
+                  </span>
+                  <span className={"hidden sm:block text-[10px] mt-1 leading-snug " + (isActive ? "text-white/80" : "text-stone-400")}>
+                    {item.helper}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => onToggleFlag(key)}
-                    className={
-                      "text-xs font-medium px-3 py-1.5 rounded-full border transition-all " +
-                      (isOn
-                        ? "bg-orange-500 text-white border-orange-500 shadow-sm"
-                        : "bg-white text-slate-600 border-stone-200 hover:border-orange-300 hover:text-orange-600")
-                    }
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+      {openPanel === "filters" && (
+        <div className="rounded-3xl border border-stone-100 bg-white shadow-sm p-4 sm:p-5">
+          <div className="mb-3">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+              Filtros prácticos
+            </p>
+            <h3 className="text-sm font-extrabold text-slate-800">
+              Afina si necesitas algo concreto
+            </h3>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {FILTROS.map(({ key, label }) => {
+              const isOn = !!activeFlags[key];
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onToggleFlag(key)}
+                  className={
+                    "text-xs font-medium px-3 py-1.5 rounded-full border transition-all " +
+                    (isOn
+                      ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                      : "bg-white text-slate-600 border-stone-200 hover:border-orange-300 hover:text-orange-600")
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
